@@ -179,3 +179,49 @@
   animation: dashMove 1.5s linear infinite;
 }
 
+/* ============================================================
+   DARK CYBER FORENSIC MAP ENGINE TILES
+   High-Contrast Luminescent Vector Network & Tactical Grids
+   ============================================================ */
+
+/* Dark container background prevents gray flashes */
+.leaflet-container {
+  background-color: #0b1014 !important;
+}
+
+/* 1. Tactical Cyber Neon Grid (OpenStreetMap Inverted & Enhanced) */
+.leaflet-tile.cyber-dark-forensic-tile {
+  filter: invert(100%) hue-rotate(185deg) brightness(95%) contrast(145%) saturate(140%) !important;
+  background-color: #0b1114 !important;
+}
+
+/* 2. Esri Dark Gray Forensic Base (Crisp Vector Canvas) */
+.leaflet-tile.esri-dark-forensic-tile {
+  filter: brightness(115%) contrast(125%) saturate(110%) !important;
+  background-color: #141a1d !important;
+}
+
+/* 3. CARTO Dark Matter High-Contrast Boosted Mode */
+.leaflet-tile.carto-dark-boosted-tile {
+  filter: brightness(140%) contrast(135%) saturate(120%) !important;
+  background-color: #0d1113 !important;
+}
+
+/* 4. High-Visibility Road & City Label Layer Overlay */
+.leaflet-tile.cyber-label-layer {
+  filter: brightness(145%) contrast(150%) drop-shadow(0 0 2px #000) !important;
+  pointer-events: none !important;
+}
+
+/* 5. Tactical Grid Scanlines Overlay (Subtle HUD Grid) */
+.cyber-grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(to right, rgba(46, 196, 182, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(46, 196, 182, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: 400;
+}
+
