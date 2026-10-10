@@ -53,3 +53,129 @@
 .animate-fadeIn {
   animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ============================================================
+   TACTICAL GEOSPATIAL RADAR & RADIUS ANIMATIONS
+   ============================================================ */
+
+/* Pulsing Leaflet Circle Paths */
+.animated-radius-circle path {
+  animation: radarCirclePulse 2.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(46, 196, 182, 0.75));
+}
+
+@keyframes radarCirclePulse {
+  0% {
+    stroke-width: 2px;
+    stroke-opacity: 0.95;
+    fill-opacity: 0.12;
+  }
+  50% {
+    stroke-width: 4px;
+    stroke-opacity: 0.55;
+    fill-opacity: 0.22;
+  }
+  100% {
+    stroke-width: 2px;
+    stroke-opacity: 0.95;
+    fill-opacity: 0.12;
+  }
+}
+
+.animated-concentric-ring path {
+  animation: concentricFade 3.5s ease-in-out infinite;
+  stroke-dasharray: 4, 6;
+}
+
+@keyframes concentricFade {
+  0%, 100% { stroke-opacity: 0.2; }
+  50% { stroke-opacity: 0.55; }
+}
+
+/* Radar Sweep Beam (Rotating 360 degree scanline) */
+@keyframes radarSweepRotate {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.radar-sweep-beam {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    rgba(46, 196, 182, 0.55) 0deg,
+    rgba(46, 196, 182, 0.2) 35deg,
+    rgba(46, 196, 182, 0.03) 65deg,
+    transparent 120deg,
+    transparent 360deg
+  );
+  animation: radarSweepRotate 3s linear infinite;
+}
+
+/* Radar Sonar Ripple Waves */
+@keyframes sonarWaveExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0.05);
+    opacity: 0.95;
+    border-width: 3px;
+  }
+  60% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+.sonar-ripple-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 2px solid #2ec4b6;
+  pointer-events: none;
+  box-shadow: 0 0 14px rgba(46, 196, 182, 0.65);
+  animation: sonarWaveExpand 3s cubic-bezier(0.1, 0.4, 0.2, 1) infinite;
+}
+
+.sonar-ripple-ring.delay-1 {
+  animation-delay: 1s;
+}
+
+.sonar-ripple-ring.delay-2 {
+  animation-delay: 2s;
+}
+
+/* Radar Center Blinking Beacon */
+@keyframes beaconBlink {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(46, 196, 182, 0.7);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(46, 196, 182, 0);
+  }
+}
+
+.beacon-center-dot {
+  animation: beaconBlink 1.5s ease-in-out infinite;
+}
+
+/* Animated Track Dashes */
+@keyframes dashMove {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+.track-animated-line path {
+  stroke-dasharray: 8, 8;
+  animation: dashMove 1.5s linear infinite;
+}
+

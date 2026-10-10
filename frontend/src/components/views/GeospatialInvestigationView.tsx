@@ -72,6 +72,10 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     '7498': true
   });
   
+  // Radar & Track Animation State
+  const [isRadarAnimationActive, setIsRadarAnimationActive] = useState<boolean>(true);
+  const [isPlayingTrack, setIsPlayingTrack] = useState<boolean>(false);
+
   // Left Tree View State
   const [isTreeExpanded, setIsTreeExpanded] = useState({
     allQueries: true,
@@ -89,6 +93,26 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       setActiveRef(selectedCallRef);
     }
   }, [selectedCallRef]);
+
+  // Automated Playback Ticker for Call Tracks
+  useEffect(() => {
+    if (!isPlayingTrack || calls.length === 0) return;
+
+    const sequenceCalls = calls.filter(c => c.latitude && c.longitude);
+    if (sequenceCalls.length === 0) return;
+
+    const interval = setInterval(() => {
+      setActiveRef((prev) => {
+        const idx = sequenceCalls.findIndex(c => c.ref_number === prev);
+        const nextIdx = (idx + 1) % sequenceCalls.length;
+        const nextCall = sequenceCalls[nextIdx];
+        onSelectCallRef(nextCall.ref_number);
+        return nextCall.ref_number;
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isPlayingTrack, calls, onSelectCallRef]);
 
   // Load Calls Data from Backend API
   const loadCalls = async () => {
@@ -315,32 +339,129 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       `, { direction: 'top' });
     });
 
-    // 3. Highlighted Radius Circle around Selected Record
+    // 3. Track Polylines between consecutive calls of the active case
+    const caseCalls = calls
+      .filter(c => c.case_id === selectedRecord?.case_id && c.latitude && c.longitude)
+      .sort((a, b) => a.ref_number - b.ref_number);
+
+    if (caseCalls.length > 1) {
+      const lineCoords: [number, number][] = caseCalls.map(c => [c.latitude!, c.longitude!]);
+      L.polyline(lineCoords, {
+        className: 'track-animated-line',
+        color: '#2ec4b6',
+        weight: 3,
+        opacity: 0.85,
+        dashArray: '8, 8'
+      }).addTo(layerGroup);
+    }
+
+    // 4. Highlighted Radius Circle & Animated Tactical Radar Overlay
     if (selectedRecord?.latitude && selectedRecord?.longitude) {
       // Move map smoothly to selected record
-      map.panTo([selectedRecord.latitude, selectedRecord.longitude]);
+      map.panTo([selectedRecord.latitude, selectedRecord.longitude], { animate: true });
 
-      // Outer Radius Search Circle (Teal #2ec4b6 at 15% fill)
-      L.circle([selectedRecord.latitude, selectedRecord.longitude], {
+      const centerLat = selectedRecord.latitude;
+      const centerLng = selectedRecord.longitude;
+      if (typeof centerLat !== 'number' || typeof centerLng !== 'number') return;
+
+      // Outer Radius Search Boundary (Teal #2ec4b6 with pulsing animation & glow)
+      L.circle([centerLat, centerLng], {
         radius: selectedRadiusMeters,
+        className: isRadarAnimationActive ? 'animated-radius-circle' : '',
         color: '#2ec4b6',
-        weight: 2,
-        dashArray: '6, 6',
+        weight: 2.5,
         fillColor: '#2ec4b6',
         fillOpacity: 0.15
       }).addTo(layerGroup);
 
-      // Inner ping ring
-      L.circle([selectedRecord.latitude, selectedRecord.longitude], {
-        radius: 80,
-        color: '#d6e1e5',
-        weight: 2,
-        fillColor: '#2ec4b6',
-        fillOpacity: 0.85
-      }).addTo(layerGroup);
+      // Concentric Range Rings (25%, 50%, 75% of radius)
+      [0.25, 0.5, 0.75].forEach((pct) => {
+        L.circle([centerLat, centerLng], {
+          radius: Math.round(selectedRadiusMeters * pct),
+          className: isRadarAnimationActive ? 'animated-concentric-ring' : '',
+          color: '#2ec4b6',
+          weight: 1,
+          dashArray: '4, 6',
+          fillColor: 'transparent',
+          fillOpacity: 0
+        }).addTo(layerGroup);
+      });
+
+      // Cardinal perimeter distance tag (North edge of radius)
+      const labelText = selectedRadiusMeters >= 1000 
+        ? `${(selectedRadiusMeters / 1000).toFixed(1)} km` 
+        : `${selectedRadiusMeters} m`;
+
+      const distTagIcon = L.divIcon({
+        className: 'radius-dist-tag',
+        html: `
+          <div style="
+            background: rgba(13, 17, 19, 0.92);
+            border: 1px solid rgba(46, 196, 182, 0.8);
+            color: #2ec4b6;
+            font-family: monospace;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 7px;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(46, 196, 182, 0.5);
+            white-space: nowrap;
+            transform: translate(-50%, -120%);
+          ">
+            RADIAL: ${labelText}
+          </div>
+        `,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
+      });
+      const northLat = centerLat + (selectedRadiusMeters / 111320);
+      L.marker([northLat, centerLng], { icon: distTagIcon }).addTo(layerGroup);
+
+      // Tactical Radar Sonar Rings & 360-degree Rotating Sweep Beam
+      if (isRadarAnimationActive) {
+        const radarDivIcon = L.divIcon({
+          className: 'radar-tactical-div-icon',
+          html: `
+            <div style="position: relative; width: 0; height: 0; pointer-events: none;">
+              <!-- Concentric expanding sonar ripple rings -->
+              <div class="sonar-ripple-ring" style="width: 140px; height: 140px;"></div>
+              <div class="sonar-ripple-ring delay-1" style="width: 240px; height: 240px;"></div>
+              <div class="sonar-ripple-ring delay-2" style="width: 340px; height: 340px;"></div>
+
+              <!-- 360-degree Rotating Radar Sweep Scanline Beam -->
+              <div class="radar-sweep-beam" style="width: 360px; height: 360px;"></div>
+
+              <!-- Center Blinking Beacon Dot -->
+              <div class="beacon-center-dot" style="
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background-color: #2ec4b6;
+                border: 2px solid #ffffff;
+                box-shadow: 0 0 14px #2ec4b6;
+              "></div>
+            </div>
+          `,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        });
+        L.marker([centerLat, centerLng], { icon: radarDivIcon }).addTo(layerGroup);
+      }
     }
 
-  }, [calls, activeRef, selectedRadiusMeters, baseMapLayer, visibleSubjects, selectedRecord]);
+    // Invalidate size to guarantee smooth tile and SVG layer rendering
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+
+  }, [calls, activeRef, selectedRadiusMeters, baseMapLayer, visibleSubjects, selectedRecord, isRadarAnimationActive]);
 
   return (
     <div className={`flex-1 flex flex-col h-[calc(100vh-50px)] font-sans select-none overflow-hidden transition-colors ${
@@ -553,14 +674,37 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
               <div className={`flex items-center gap-1 p-1 rounded border ${
                 isDarkMode ? 'bg-[#1a2327] border-[#25323a]' : 'bg-white border-slate-300'
               }`}>
-                <button title="Rewind Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-teal-600 text-slate-500'}`}>
+                <button 
+                  title="Rewind Playback to Start" 
+                  onClick={() => {
+                    setIsPlayingTrack(false);
+                    const first = calls.find(c => c.latitude && c.longitude);
+                    if (first) {
+                      setActiveRef(first.ref_number);
+                      onSelectCallRef(first.ref_number);
+                    }
+                  }}
+                  className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-teal-600 text-slate-500'}`}
+                >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
-                <button title="Stop Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#e5534b] text-[#86989f]' : 'hover:text-red-600 text-slate-500'}`}>
+                <button 
+                  title="Stop Track Playback" 
+                  onClick={() => setIsPlayingTrack(false)}
+                  className={`p-1 transition-colors ${isPlayingTrack ? 'text-[#e5534b]' : isDarkMode ? 'hover:text-[#e5534b] text-[#86989f]' : 'hover:text-red-600 text-slate-500'}`}
+                >
                   <Square className="w-3.5 h-3.5" />
                 </button>
-                <button title="Play Track Animation" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-emerald-600 text-slate-500'}`}>
-                  <Play className="w-3.5 h-3.5" />
+                <button 
+                  title={isPlayingTrack ? "Pause Track Playback" : "Play Track Animation"} 
+                  onClick={() => setIsPlayingTrack(!isPlayingTrack)}
+                  className={`p-1 rounded transition-colors ${
+                    isPlayingTrack 
+                      ? 'bg-[#2ec4b6] text-[#0d1113]' 
+                      : isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-emerald-600 text-slate-500'
+                  }`}
+                >
+                  <Play className={`w-3.5 h-3.5 ${isPlayingTrack ? 'fill-current' : ''}`} />
                 </button>
               </div>
 
@@ -601,6 +745,20 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                   ))}
                 </div>
               </div>
+
+              {/* Radar Animation Toggle */}
+              <button
+                onClick={() => setIsRadarAnimationActive(!isRadarAnimationActive)}
+                title="Toggle Live Radar Sweep, Sonar Waves & Radius Glow"
+                className={`flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded border transition-all ${
+                  isRadarAnimationActive
+                    ? 'bg-[#12312f] border-[#2ec4b6] text-[#2ec4b6] font-bold shadow-sm shadow-[#2ec4b6]/25'
+                    : isDarkMode ? 'bg-[#1a2327] border-[#25323a] text-[#86989f]' : 'bg-white border-slate-300 text-slate-500'
+                }`}
+              >
+                <Radio className={`w-3.5 h-3.5 ${isRadarAnimationActive ? 'animate-pulse text-[#2ec4b6]' : ''}`} />
+                <span>Radar Scan: {isRadarAnimationActive ? 'ON' : 'OFF'}</span>
+              </button>
             </div>
 
             {/* Right Subject Badges Legend Matching Reference Image 1 */}
@@ -701,6 +859,29 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                       Analyze Audio Evidence →
                     </button>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Tactical Radar Sweep HUD Overlay */}
+            {isRadarAnimationActive && selectedRecord && selectedRecord.latitude && (
+              <div className="absolute bottom-3 right-3 z-20 bg-[#141a1d]/90 backdrop-blur-md border border-[#2ec4b6]/50 rounded-xl px-3.5 py-2 shadow-2xl text-[11px] font-mono text-[#d6e1e5] flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2ec4b6] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#2ec4b6]"></span>
+                  </span>
+                  <span className="text-[#2ec4b6] font-bold">RADAR SWEEP ACTIVE</span>
+                </div>
+                <span className="text-[#86989f]">|</span>
+                <span className="text-[#d6e1e5]">
+                  RADIUS: <strong className="text-[#2ec4b6]">{selectedRadiusMeters >= 1000 ? `${(selectedRadiusMeters / 1000).toFixed(1)} km` : `${selectedRadiusMeters} m`}</strong>
+                </span>
+                {isPlayingTrack && (
+                  <>
+                    <span className="text-[#86989f]">|</span>
+                    <span className="text-[#f0a73a] font-bold animate-pulse">▶ TRACK PLAYING</span>
+                  </>
                 )}
               </div>
             )}

@@ -1221,6 +1221,34 @@ export const VoiceAnalysisView: React.FC<Props> = ({
                     </div>
                   </div>
 
+                  {/* Tactical Mini Radar Animation Preview */}
+                  <div className={`p-3 rounded-lg border flex items-center justify-between overflow-hidden relative ${subBoxBgClass}`}>
+                    <div className="flex items-center gap-3 z-10">
+                      <div className="relative w-12 h-12 rounded-full border border-[#2ec4b6]/60 bg-[#0d1113] flex items-center justify-center overflow-hidden shrink-0 shadow-md shadow-[#2ec4b6]/20">
+                        {/* Concentric rings */}
+                        <div className="absolute inset-1 rounded-full border border-[#2ec4b6]/30"></div>
+                        <div className="absolute inset-3 rounded-full border border-[#2ec4b6]/50"></div>
+                        {/* Rotating sweep cone */}
+                        <div className="radar-sweep-beam" style={{ width: '48px', height: '48px' }}></div>
+                        {/* Pulsing center beacon */}
+                        <div className="w-2 h-2 rounded-full bg-[#2ec4b6] shadow-[0_0_8px_#2ec4b6] animate-ping"></div>
+                        <div className="absolute w-1.5 h-1.5 rounded-full bg-white z-10"></div>
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-bold text-[#2ec4b6] flex items-center gap-1.5 font-mono">
+                          <Radio className="w-3 h-3 animate-pulse" />
+                          <span>ACTIVE RADAR COVERAGE: ±{selectedCase.accuracyRadiusMeters || 1200}M</span>
+                        </div>
+                        <div className="text-[10px] text-[#86989f] font-mono">
+                          Carrier tower sector telemetry ({selectedCase.cellTowerId})
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono text-[#2ec4b6] font-bold bg-[#12312f] px-2 py-0.5 rounded border border-[#2ec4b6]/40 z-10">
+                      SCANNING
+                    </span>
+                  </div>
+
                   {/* Primary Map Jump Button */}
                   <div className="flex items-center gap-2 pt-1">
                     <button
