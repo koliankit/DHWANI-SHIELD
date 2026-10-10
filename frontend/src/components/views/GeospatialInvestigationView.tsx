@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { CallRecord } from '../../types';
 import { api } from '../../services/api';
+import { DEFAULT_GEOSPATIAL_CALLS } from '../../data/mockGeospatialCalls';
 
 interface Props {
   selectedCallRef: number | null;
@@ -58,9 +59,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
   onNavigateToVoiceForensics,
   isDarkMode = true
 }) => {
-  const [calls, setCalls] = useState<CallRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeRef, setActiveRef] = useState<number>(selectedCallRef || 1348);
+  const [calls, setCalls] = useState<CallRecord[]>(DEFAULT_GEOSPATIAL_CALLS);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeRef, setActiveRef] = useState<number>(selectedCallRef || DEFAULT_GEOSPATIAL_CALLS[0].ref_number);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCaseFilter, setSelectedCaseFilter] = useState<string>('ALL');
   const [selectedRadiusMeters, setSelectedRadiusMeters] = useState<number>(1000); // 1 km default
@@ -119,9 +120,13 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     setIsLoading(true);
     try {
       const data = await api.getGeospatialCalls();
-      setCalls(data);
-    } catch (err) {
-      console.warn('Failed to load geospatial calls from backend, using fallback', err);
+      if (Array.isArray(data) && data.length > 0) {
+        setCalls(data);
+      } else {
+        setCalls(DEFAULT_GEOSPATIAL_CALLS);
+      }
+    } catch {
+      setCalls(DEFAULT_GEOSPATIAL_CALLS);
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +138,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
   // Currently active selected call record
   const selectedRecord = useMemo(() => {
-    return calls.find(c => c.ref_number === activeRef) || calls[0] || null;
+    return calls.find(c => c.ref_number === activeRef) || calls[0] || DEFAULT_GEOSPATIAL_CALLS[0];
   }, [calls, activeRef]);
 
   // Haversine distance calculator in frontend

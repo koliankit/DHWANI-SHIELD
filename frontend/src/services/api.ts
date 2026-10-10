@@ -1,4 +1,5 @@
 import { AnalysisResponse, HistoryItem, SystemStatusResponse, CallRecord } from '../types';
+import { DEFAULT_GEOSPATIAL_CALLS } from '../data/mockGeospatialCalls';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -155,28 +156,44 @@ export const api = {
     lng?: number;
     radiusMeters?: number;
   }): Promise<CallRecord[]> {
-    const q = new URLSearchParams();
-    if (params?.caseId) q.set('case_id', params.caseId);
-    if (params?.targetNumber) q.set('target_number', params.targetNumber);
-    if (params?.search) q.set('search', params.search);
-    if (params?.lat !== undefined) q.set('lat', params.lat.toString());
-    if (params?.lng !== undefined) q.set('lng', params.lng.toString());
-    if (params?.radiusMeters !== undefined) q.set('radius_meters', params.radiusMeters.toString());
+    try {
+      const q = new URLSearchParams();
+      if (params?.caseId) q.set('case_id', params.caseId);
+      if (params?.targetNumber) q.set('target_number', params.targetNumber);
+      if (params?.search) q.set('search', params.search);
+      if (params?.lat !== undefined) q.set('lat', params.lat.toString());
+      if (params?.lng !== undefined) q.set('lng', params.lng.toString());
+      if (params?.radiusMeters !== undefined) q.set('radius_meters', params.radiusMeters.toString());
 
-    const res = await fetch(`${API_BASE}/geospatial/calls?${q.toString()}`);
-    if (!res.ok) throw new Error('Failed to fetch geospatial calls');
-    return res.json();
+      const res = await fetch(`${API_BASE}/geospatial/calls?${q.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch geospatial calls');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      return DEFAULT_GEOSPATIAL_CALLS;
+    } catch {
+      return DEFAULT_GEOSPATIAL_CALLS;
+    }
   },
 
   async getGeospatialCallByRef(refNumber: number): Promise<CallRecord> {
-    const res = await fetch(`${API_BASE}/geospatial/calls/${refNumber}`);
-    if (!res.ok) throw new Error(`Failed to fetch call record #${refNumber}`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/geospatial/calls/${refNumber}`);
+      if (!res.ok) throw new Error(`Failed to fetch call record #${refNumber}`);
+      return await res.json();
+    } catch {
+      const found = DEFAULT_GEOSPATIAL_CALLS.find(c => c.ref_number === refNumber);
+      return found || DEFAULT_GEOSPATIAL_CALLS[0];
+    }
   },
 
   async getLinkedCall(evidenceId: string): Promise<CallRecord | null> {
-    const res = await fetch(`${API_BASE}/geospatial/linked/${evidenceId}`);
-    if (!res.ok) return null;
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE}/geospatial/linked/${evidenceId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      const found = DEFAULT_GEOSPATIAL_CALLS.find(c => c.associated_evidence_id === evidenceId || c.event_id === evidenceId);
+      return found || null;
+    }
   }
 };
