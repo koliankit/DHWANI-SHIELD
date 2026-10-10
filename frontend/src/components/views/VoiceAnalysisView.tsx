@@ -1,0 +1,1469 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Play, 
+  Pause, 
+  SkipBack, 
+  SkipForward, 
+  Volume2, 
+  VolumeX, 
+  AlertTriangle, 
+  Activity, 
+  Ear, 
+  Download, 
+  UserCheck, 
+  Clock, 
+  Cpu, 
+  Radio, 
+  CheckCircle2, 
+  Sliders, 
+  ChevronDown, 
+  X, 
+  MapPin, 
+  Upload, 
+  Mic, 
+  ShieldCheck, 
+  Hash, 
+  ExternalLink 
+} from 'lucide-react';
+import { AnalysisResponse } from '../../types';
+import { api } from '../../services/api';
+
+interface Props {
+  analysisData: AnalysisResponse | null;
+  onOpenScamScanner?: () => void;
+  onNavigateToGeospatial: (callRef?: number) => void;
+  isDarkMode: boolean;
+}
+
+interface CaseItem {
+  id: string;
+  code: string;
+  title: string;
+  duration: number; // in seconds
+  anomalyTime: number;
+  spliceTime: number;
+  similarityScore: number;
+  thresholdScore: number;
+  voiceSynthesisPct: number;
+  playbackAttackPct: number;
+  temporalBreakText: string;
+  principal: string;
+  model: string;
+  submissionDate: string;
+  sourceType: string;
+  sampleKey: string;
+  linkedCallRef: number;
+  cellTowerId: string;
+  locationArea: string;
+  sha256Hash: string;
+  evidenceId: string;
+  authenticityCategory: 'HIGH RISK' | 'REVIEW REQUIRED' | 'LOW RISK';
+  explanationText: string;
+}
+
+const CASES: CaseItem[] = [
+  {
+    id: 'case-v0884',
+    code: 'Case #V-0884',
+    title: 'Live stream capture — AGM',
+    duration: 38.0,
+    anomalyTime: 26.4,
+    spliceTime: 33.0,
+    similarityScore: 61.3,
+    thresholdScore: 85.0,
+    voiceSynthesisPct: 89,
+    playbackAttackPct: 74,
+    temporalBreakText: 'TEMPORAL BREAK — 00:26.4',
+    principal: 'Template #P-0047 · Active',
+    model: 'ECAPA-TDNN + Mel-spectrogram ensemble',
+    submissionDate: '2026-05-14',
+    sourceType: 'Live stream capture — AGM 2026-05-14',
+    sampleKey: 'ai_clone',
+    linkedCallRef: 1348,
+    cellTowerId: '3102604f160b7e303',
+    locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    sha256Hash: '9a8f4c2e6b1d037a5f8e2190bb42cf8912d0987e41ac32de58190c14b2d30fa1',
+    evidenceId: 'EVD-2026-0884-A1',
+    authenticityCategory: 'HIGH RISK',
+    explanationText: 'High-frequency vocoder spectral rolloff above 3800Hz with severe phase discontinuities. Enrolled voiceprint divergence confirmed at 00:26.4.'
+  },
+  {
+    id: 'case-v0885',
+    code: 'Case #V-0885',
+    title: 'SBI Fraud Prevention Demand',
+    duration: 29.5,
+    anomalyTime: 18.2,
+    spliceTime: 24.1,
+    similarityScore: 88.2,
+    thresholdScore: 85.0,
+    voiceSynthesisPct: 24,
+    playbackAttackPct: 35,
+    temporalBreakText: 'CADENCE IRREGULARITY — 00:18.2',
+    principal: 'Template #P-0112 · SBI Executive',
+    model: 'ECAPA-TDNN + Intent Heuristic',
+    submissionDate: '2026-06-02',
+    sourceType: 'Inbound Telecom Trunk — SBI Line',
+    sampleKey: 'scam',
+    linkedCallRef: 1359,
+    cellTowerId: '3102604f160b7e303',
+    locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    sha256Hash: '4f2a7b8e19d0c28341b52e098a72c1f4e308912bd6c9081a2e78345c6d0912ab',
+    evidenceId: 'EVD-2026-0885-B2',
+    authenticityCategory: 'HIGH RISK',
+    explanationText: 'Acoustic voice is likely genuine human speech, but Layer 2 catches critical OTP harvesting and coercive pressure independently.'
+  },
+  {
+    id: 'case-v0886',
+    code: 'Case #V-0886',
+    title: 'Benign Executive Meeting Call',
+    duration: 31.0,
+    anomalyTime: 0,
+    spliceTime: 0,
+    similarityScore: 94.6,
+    thresholdScore: 85.0,
+    voiceSynthesisPct: 18,
+    playbackAttackPct: 12,
+    temporalBreakText: 'NO BREAKS DETECTED',
+    principal: 'Template #P-0047 · Verified Natural',
+    model: 'ECAPA-TDNN Baseline',
+    submissionDate: '2026-06-10',
+    sourceType: 'Encrypted VOIP Trunk — Internal',
+    sampleKey: 'benign',
+    linkedCallRef: 1351,
+    cellTowerId: '3102604f160b7e303',
+    locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    sha256Hash: '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b',
+    evidenceId: 'EVD-2026-0886-C3',
+    authenticityCategory: 'LOW RISK',
+    explanationText: 'Acoustic parameters match authentic human vocal tract resonances. Natural pitch micro-jitter and harmonic formants preserved.'
+  }
+];
+
+export const VoiceAnalysisView: React.FC<Props> = ({ 
+  analysisData, 
+  onOpenScamScanner,
+  onNavigateToGeospatial,
+  isDarkMode 
+}) => {
+  const [selectedCase, setSelectedCase] = useState<CaseItem>(CASES[0]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(15.3); // Initial timestamp matching screenshot
+  const [isMuted, setIsMuted] = useState(false);
+  const [isCaseDropdownOpen, setIsCaseDropdownOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isEvidenceExporting, setIsEvidenceExporting] = useState(false);
+  const [exportNotification, setExportNotification] = useState<string | null>(null);
+
+  // Upload state
+  const [isAnalyzingUpload, setIsAnalyzingUpload] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const spectrogramCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const voiceprintCanvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Load real audio if available
+  useEffect(() => {
+    const audio = new Audio(`/api/samples/${selectedCase.sampleKey}/audio`);
+    audioRef.current = audio;
+
+    audio.onended = () => {
+      setIsPlaying(false);
+      setCurrentTime(selectedCase.duration);
+    };
+
+    return () => {
+      audio.pause();
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [selectedCase]);
+
+  // Animation playback ticker
+  useEffect(() => {
+    if (isPlaying) {
+      let lastTime = performance.now();
+      const tick = (now: number) => {
+        const delta = (now - lastTime) / 1000;
+        lastTime = now;
+        setCurrentTime((prev) => {
+          const next = prev + delta;
+          if (next >= selectedCase.duration) {
+            setIsPlaying(false);
+            return selectedCase.duration;
+          }
+          return next;
+        });
+        animFrameRef.current = requestAnimationFrame(tick);
+      };
+      animFrameRef.current = requestAnimationFrame(tick);
+    } else {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    }
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isPlaying, selectedCase.duration]);
+
+  // Audio Play / Pause
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      if (audioRef.current) audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      if (currentTime >= selectedCase.duration) {
+        setCurrentTime(0);
+      }
+      if (audioRef.current) {
+        audioRef.current.currentTime = Math.min(currentTime, audioRef.current.duration || selectedCase.duration);
+        audioRef.current.play().catch(() => {});
+      }
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSeek = (newTime: number) => {
+    const clamped = Math.max(0, Math.min(newTime, selectedCase.duration));
+    setCurrentTime(clamped);
+    if (audioRef.current && !isNaN(audioRef.current.duration)) {
+      audioRef.current.currentTime = clamped;
+    }
+  };
+
+  const formatTimestamp = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const wholeSecs = Math.floor(secs);
+    const tenths = Math.floor((secs - wholeSecs) * 10);
+    return `${mins.toString().padStart(2, '0')}:${wholeSecs.toString().padStart(2, '0')}.${tenths}`;
+  };
+
+  // Upload real audio handler
+  const handleFileUpload = async (file: File) => {
+    setIsAnalyzingUpload(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const result = await api.analyzeAudio(file);
+
+      const uploadedCase: CaseItem = {
+        id: `case-upload-${Date.now()}`,
+        code: `Case #U-${Math.floor(1000 + Math.random() * 9000)}`,
+        title: file.name,
+        duration: result.audio_duration_seconds,
+        anomalyTime: result.synthetic_speech_score > 0.5 ? result.audio_duration_seconds * 0.6 : 0,
+        spliceTime: result.synthetic_speech_score > 0.7 ? result.audio_duration_seconds * 0.8 : 0,
+        similarityScore: Math.round((1 - result.synthetic_speech_score * 0.5) * 1000) / 10,
+        thresholdScore: 85.0,
+        voiceSynthesisPct: Math.round(result.synthetic_speech_score * 100),
+        playbackAttackPct: Math.round(result.acoustic_breakdown.vocoder_artifact_score * 100),
+        temporalBreakText: result.synthetic_speech_score > 0.6 ? `VOCAL DISCONTINUITY — ${result.authenticity_label.toUpperCase()}` : 'NO ANOMALIES DETECTED',
+        principal: 'Enrolled Template #P-0047 · Target',
+        model: result.model_name,
+        submissionDate: new Date().toISOString().split('T')[0],
+        sourceType: `Direct Upload (${(file.size / 1024).toFixed(1)} KB)`,
+        sampleKey: 'ai_clone',
+        linkedCallRef: 1348,
+        cellTowerId: '3102604f160b7e303',
+        locationArea: 'Alexandria, VA Sector 1',
+        sha256Hash: hashHex,
+        evidenceId: `EVD-${result.analysis_id.slice(0, 8).toUpperCase()}`,
+        authenticityCategory: result.overall_risk === 'HIGH RISK' ? 'HIGH RISK' : result.overall_risk === 'VERIFY' ? 'REVIEW REQUIRED' : 'LOW RISK',
+        explanationText: result.risk_explanation || result.evidence_summary
+      };
+
+      setSelectedCase(uploadedCase);
+      setCurrentTime(0);
+      setExportNotification(`Audio '${file.name}' analyzed successfully by ECAPA-TDNN engine!`);
+    } catch (err: any) {
+      alert(`Audio analysis failed: ${err.message}`);
+    } finally {
+      setIsAnalyzingUpload(false);
+    }
+  };
+
+  // Draw Waveform Canvas (Theme-Aware: Light vs Dark)
+  useEffect(() => {
+    const canvas = waveformCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    // Canvas background
+    ctx.fillStyle = isDarkMode ? '#08101e' : '#f8fafc';
+    ctx.fillRect(0, 0, width, height);
+
+    // Subtle horizontal grid line
+    ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+
+    const barCount = 200;
+    const step = width / barCount;
+    const anomalyX = (selectedCase.anomalyTime / selectedCase.duration) * width;
+    const spliceX = (selectedCase.spliceTime / selectedCase.duration) * width;
+    const currentX = (currentTime / selectedCase.duration) * width;
+
+    for (let i = 0; i < barCount; i++) {
+      const x = i * step;
+      const progress = i / barCount;
+
+      const baseAmp = Math.sin(progress * Math.PI * 8) * 0.4 + 
+                      Math.cos(progress * Math.PI * 19) * 0.35 + 
+                      Math.sin(progress * Math.PI * 33) * 0.25;
+      const noise = (Math.sin(i * 12.3) * 43758.5453) % 1;
+      let amp = Math.abs(baseAmp * 0.7 + noise * 0.3);
+
+      if (selectedCase.anomalyTime > 0 && progress >= (selectedCase.anomalyTime / selectedCase.duration)) {
+        amp = amp * 0.75 + 0.15;
+      }
+
+      const barHeight = Math.max(3, amp * (height * 0.82));
+      const y = (height - barHeight) / 2;
+
+      if (x <= currentX) {
+        ctx.fillStyle = isDarkMode ? '#2dd4bf' : '#0d9488';
+        ctx.shadowColor = isDarkMode ? '#06b6d4' : 'rgba(13, 148, 136, 0.3)';
+        ctx.shadowBlur = isDarkMode ? 4 : 2;
+      } else {
+        ctx.fillStyle = isDarkMode ? '#0e7490' : '#94a3b8';
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.fillRect(x, y, Math.max(1.2, step - 0.8), barHeight);
+    }
+    ctx.shadowBlur = 0;
+
+    // Anomaly marker
+    if (selectedCase.anomalyTime > 0) {
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(anomalyX, 18);
+      ctx.lineTo(anomalyX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Splice marker
+    if (selectedCase.spliceTime > 0) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(spliceX, 18);
+      ctx.lineTo(spliceX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Current playhead
+    ctx.strokeStyle = isDarkMode ? '#ffffff' : '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(currentX, 0);
+    ctx.lineTo(currentX, height);
+    ctx.stroke();
+
+  }, [currentTime, selectedCase, isDarkMode]);
+
+  // Draw Mel-Spectrogram Canvas (Theme-Aware)
+  useEffect(() => {
+    const canvas = spectrogramCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = isDarkMode ? '#050c18' : '#0f172a';
+    ctx.fillRect(0, 0, width, height);
+
+    const cols = 160;
+    const rows = 45;
+    const colWidth = width / cols;
+    const rowHeight = height / rows;
+    const breakCol = selectedCase.anomalyTime > 0 
+      ? Math.floor((selectedCase.anomalyTime / selectedCase.duration) * cols) 
+      : -1;
+
+    for (let c = 0; c < cols; c++) {
+      const isPostBreak = breakCol > 0 && c >= breakCol;
+      
+      for (let r = 0; r < rows; r++) {
+        const freqBin = 1 - (r / rows);
+        const f1 = Math.exp(-Math.pow(freqBin - 0.15, 2) / 0.008);
+        const f2 = Math.exp(-Math.pow(freqBin - 0.35, 2) / 0.012);
+        const f3 = Math.exp(-Math.pow(freqBin - 0.60, 2) / 0.02);
+        const vocalPitch = (Math.sin(c * 0.8) + 1) * 0.5;
+        
+        let energy = (f1 * 0.85 + f2 * 0.6 + f3 * 0.4) * vocalPitch;
+        if (Math.sin(freqBin * 80) > 0.3) energy += 0.2;
+
+        if (isPostBreak) {
+          if (freqBin > 0.45) energy *= 0.15;
+          else energy = Math.min(1, energy * 1.3);
+        }
+
+        energy = Math.max(0, Math.min(1, energy + (Math.sin(c * 3.7 + r * 5.1) * 0.1)));
+        
+        if (energy > 0.75) {
+          ctx.fillStyle = `rgba(220, 252, 250, ${energy * 0.95})`;
+        } else if (energy > 0.4) {
+          ctx.fillStyle = `rgba(45, 212, 191, ${energy * 0.8})`;
+        } else if (energy > 0.15) {
+          ctx.fillStyle = `rgba(14, 116, 144, ${energy * 0.6})`;
+        } else {
+          ctx.fillStyle = isDarkMode ? `rgba(8, 28, 54, ${energy * 0.4})` : `rgba(15, 23, 42, ${energy * 0.4})`;
+        }
+
+        ctx.fillRect(c * colWidth, r * rowHeight, colWidth + 0.5, rowHeight + 0.5);
+      }
+    }
+
+    if (selectedCase.anomalyTime > 0) {
+      const breakX = (selectedCase.anomalyTime / selectedCase.duration) * width;
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(breakX, 0);
+      ctx.lineTo(breakX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    const playheadX = (currentTime / selectedCase.duration) * width;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, 0);
+    ctx.lineTo(playheadX, height);
+    ctx.stroke();
+
+  }, [currentTime, selectedCase, isDarkMode]);
+
+  // Draw Voiceprint Comparison Canvas (Theme-Aware)
+  useEffect(() => {
+    const canvas = voiceprintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    ctx.fillStyle = isDarkMode ? '#060f1c' : '#f8fafc';
+    ctx.fillRect(0, 0, width, height);
+
+    const points = 100;
+    const breakIndex = selectedCase.anomalyTime > 0 
+      ? Math.floor((selectedCase.anomalyTime / selectedCase.duration) * points) 
+      : -1;
+    const breakX = selectedCase.anomalyTime > 0 
+      ? (selectedCase.anomalyTime / selectedCase.duration) * width 
+      : -1;
+
+    const enrolledY: number[] = [];
+    const submittedY: number[] = [];
+
+    for (let i = 0; i <= points; i++) {
+      const t = i / points;
+      const base = height * 0.58 + Math.sin(t * 14) * (height * 0.08) + Math.cos(t * 22) * (height * 0.04);
+      enrolledY.push(base);
+
+      if (breakIndex > 0 && i >= breakIndex) {
+        const divergenceProg = (i - breakIndex) / (points - breakIndex);
+        const divOffset = Math.sin(divergenceProg * Math.PI) * (height * 0.38) + (divergenceProg * (height * 0.22));
+        submittedY.push(base - divOffset);
+      } else {
+        const jitter = Math.sin(i * 19.3) * (height * 0.02);
+        submittedY.push(base + jitter);
+      }
+    }
+
+    // Divergence Area Shaded Fill
+    if (breakIndex > 0) {
+      ctx.beginPath();
+      ctx.moveTo(breakX, enrolledY[breakIndex]);
+      for (let i = breakIndex; i <= points; i++) {
+        const x = (i / points) * width;
+        ctx.lineTo(x, submittedY[i]);
+      }
+      for (let i = points; i >= breakIndex; i--) {
+        const x = (i / points) * width;
+        ctx.lineTo(x, enrolledY[i]);
+      }
+      ctx.closePath();
+      
+      const grad = ctx.createLinearGradient(breakX, 0, width, 0);
+      grad.addColorStop(0, 'rgba(245, 158, 11, 0.15)');
+      grad.addColorStop(1, 'rgba(245, 158, 11, 0.35)');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+      ctx.lineWidth = 1;
+      for (let x = breakX; x < width; x += 10) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + 10, height);
+        ctx.stroke();
+      }
+    }
+
+    // Enrolled Template Curve (Cyan / Teal)
+    ctx.strokeStyle = isDarkMode ? '#2dd4bf' : '#0d9488';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const x = (i / points) * width;
+      if (i === 0) ctx.moveTo(x, enrolledY[i]);
+      else ctx.lineTo(x, enrolledY[i]);
+    }
+    ctx.stroke();
+
+    // Submitted Audio Curve (White in dark mode, Charcoal in light mode)
+    ctx.strokeStyle = isDarkMode ? '#ffffff' : '#0f172a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= points; i++) {
+      const x = (i / points) * width;
+      if (i === 0) ctx.moveTo(x, submittedY[i]);
+      else ctx.lineTo(x, submittedY[i]);
+    }
+    ctx.stroke();
+
+    if (breakX > 0) {
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(breakX, 10);
+      ctx.lineTo(breakX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+  }, [selectedCase, isDarkMode]);
+
+  // Export Forensic Evidence Pack
+  const handleExportEvidencePack = async () => {
+    setIsEvidenceExporting(true);
+    try {
+      if (analysisData?.analysis_id) {
+        const res = await fetch(`/api/report/${analysisData.analysis_id}?format=pdf`);
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Forensic_Evidence_Pack_${selectedCase.code.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+          setExportNotification('Forensic Evidence Pack PDF exported successfully!');
+          return;
+        }
+      }
+      fallbackExportJson();
+    } catch {
+      fallbackExportJson();
+    } finally {
+      setIsEvidenceExporting(false);
+      setTimeout(() => setExportNotification(null), 4000);
+    }
+  };
+
+  const fallbackExportJson = () => {
+    const evidenceBlob = new Blob([
+      JSON.stringify(
+        {
+          case_code: selectedCase.code,
+          evidence_id: selectedCase.evidenceId,
+          sha256_hash: selectedCase.sha256Hash,
+          investigation_status: 'EVIDENCE_READY_FOR_LEGAL_PROCEEDINGS',
+          timestamp: new Date().toISOString(),
+          audio_fingerprint: {
+            duration_seconds: selectedCase.duration,
+            anomaly_offset: selectedCase.anomalyTime,
+            splice_offset: selectedCase.spliceTime
+          },
+          biometric_comparison: {
+            similarity_score: `${selectedCase.similarityScore}%`,
+            decision_threshold: `${selectedCase.thresholdScore}%`,
+            enrolled_principal: selectedCase.principal,
+            result: selectedCase.similarityScore >= selectedCase.thresholdScore ? 'ABOVE_THRESHOLD' : 'BELOW_THRESHOLD'
+          },
+          anti_spoofing_analysis: {
+            voice_synthesis_probability: `${selectedCase.voiceSynthesisPct}%`,
+            playback_attack_probability: `${selectedCase.playbackAttackPct}%`,
+            temporal_coherence: selectedCase.temporalBreakText,
+            category: selectedCase.authenticityCategory
+          },
+          geospatial_telemetry_link: {
+            linked_cdr_ref: selectedCase.linkedCallRef,
+            tower_id: selectedCase.cellTowerId,
+            coverage_sector: selectedCase.locationArea
+          }
+        },
+        null,
+        2
+      )
+    ], { type: 'application/json' });
+    const url = window.URL.createObjectURL(evidenceBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Forensic_Evidence_Pack_${selectedCase.code.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    setExportNotification('Forensic Evidence JSON Package exported with SHA-256 audit log!');
+  };
+
+  // Common Card CSS classes based on Theme
+  const cardBgClass = isDarkMode 
+    ? 'bg-[#0b1422] border-[#142339] shadow-lg shadow-black/40 text-slate-100' 
+    : 'bg-white border-slate-200 shadow-sm text-slate-900';
+
+  const subBoxBgClass = isDarkMode
+    ? 'bg-[#08101d] border-[#142135]'
+    : 'bg-slate-50 border-slate-200';
+
+  return (
+    <div className={`min-h-full flex flex-col font-sans select-none pb-36 transition-colors duration-200 ${
+      isDarkMode ? 'bg-[#060b13] text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      
+      {/* 1. Streamlined Top Utility Toolbar (Replaces duplicated breadcrumb to expand vertical space) */}
+      <div className={`border-b px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 ${
+        isDarkMode ? 'bg-[#08101d] border-[#142033]' : 'bg-white border-slate-200'
+      }`}>
+        <div className="flex items-center gap-3 text-xs">
+          {/* Interactive Case Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsCaseDropdownOpen(!isCaseDropdownOpen)}
+              className={`flex items-center gap-1.5 font-mono font-semibold transition-colors px-2.5 py-1 rounded border ${
+                isDarkMode 
+                  ? 'bg-[#0f1b2d] border-[#1b2b42] text-slate-200 hover:text-cyan-400' 
+                  : 'bg-slate-100 border-slate-300 text-slate-800 hover:text-teal-700'
+              }`}
+            >
+              <span>{selectedCase.code}</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+
+            {isCaseDropdownOpen && (
+              <div className={`absolute top-full left-0 mt-1 w-64 rounded-lg shadow-xl z-50 py-1 text-xs font-mono border ${
+                isDarkMode ? 'bg-[#0d1728] border-[#1b2f4a]' : 'bg-white border-slate-200 shadow-lg'
+              }`}>
+                {CASES.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setSelectedCase(c);
+                      setCurrentTime(c.anomalyTime > 0 ? c.anomalyTime : 0);
+                      setIsCaseDropdownOpen(false);
+                      setIsPlaying(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${
+                      c.id === selectedCase.id 
+                        ? isDarkMode 
+                          ? 'bg-[#122238] text-cyan-400 font-semibold' 
+                          : 'bg-teal-50 text-teal-800 font-semibold'
+                        : isDarkMode 
+                          ? 'text-slate-300 hover:bg-[#162740]' 
+                          : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div>{c.code}</div>
+                      <div className={`text-[11px] font-sans truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{c.title}</div>
+                    </div>
+                    {c.id === selectedCase.id && <span className="text-teal-500 text-xs">●</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Evidence ID Badge */}
+          <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded font-mono text-[11px] border ${
+            isDarkMode 
+              ? 'bg-[#0a1424] border-[#162740] text-slate-300' 
+              : 'bg-slate-100 border-slate-200 text-slate-700'
+          }`}>
+            <Hash className="w-3 h-3 text-cyan-500" />
+            <span>{selectedCase.evidenceId}</span>
+            <span className="text-slate-400">·</span>
+            <span className="text-emerald-500 font-bold">SHA-256 OK</span>
+          </div>
+        </div>
+
+        {/* Action Buttons: Upload Audio & Geospatial Jump */}
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.wav,.mp3,.flac,.m4a"
+            onChange={(e) => {
+              if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
+            }}
+            className="hidden"
+          />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isAnalyzingUpload}
+            className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors shadow-sm ${
+              isDarkMode 
+                ? 'bg-cyan-950/70 hover:bg-cyan-900 border-cyan-500/50 text-cyan-300 hover:text-white' 
+                : 'bg-teal-50 hover:bg-teal-100 border-teal-300 text-teal-800'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>{isAnalyzingUpload ? 'Analyzing Audio...' : 'Upload Audio Evidence'}</span>
+          </button>
+
+          <button
+            onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
+            className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors shadow-sm ${
+              isDarkMode 
+                ? 'bg-blue-950/80 hover:bg-blue-900 border-blue-500/50 text-blue-300 hover:text-white' 
+                : 'bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-800'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            <span>Location Intelligence (Ref #{selectedCase.linkedCallRef})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Export notification toast */}
+      {exportNotification && (
+        <div className="mx-6 mt-3 bg-emerald-900/90 border border-emerald-400 text-white px-4 py-2 rounded-lg text-xs flex items-center justify-between shadow-lg animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+            <span>{exportNotification}</span>
+          </div>
+          <button onClick={() => setExportNotification(null)} className="text-emerald-200 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* 2. Main Forensic Grid Layout (EXPANDED / INCREASED SECTION) */}
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 max-w-[1780px] w-full mx-auto">
+        
+        {/* ================= LEFT COLUMN (Audio Waveform & Mel-Spectrogram) ================= */}
+        <div className="lg:col-span-7 space-y-6">
+          
+          {/* Card 1: SUBMITTED AUDIO (Expanded height) */}
+          <div className={`rounded-xl p-5 border transition-colors ${cardBgClass}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className={`text-xs font-bold uppercase tracking-wider font-mono ${
+                  isDarkMode ? 'text-[#2dd4bf]' : 'text-teal-700'
+                }`}>
+                  SUBMITTED AUDIO
+                </h3>
+                <p className={`text-xs mt-0.5 font-sans ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  {selectedCase.code} · {selectedCase.title} · {formatTimestamp(selectedCase.duration)}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {selectedCase.anomalyTime > 0 && (
+                  <button 
+                    onClick={() => handleSeek(selectedCase.anomalyTime)}
+                    className="text-[10px] font-mono uppercase font-bold text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded hover:bg-amber-500/20 transition-colors"
+                  >
+                    ANOMALY: {formatTimestamp(selectedCase.anomalyTime)}
+                  </button>
+                )}
+                {selectedCase.spliceTime > 0 && (
+                  <button 
+                    onClick={() => handleSeek(selectedCase.spliceTime)}
+                    className="text-[10px] font-mono uppercase font-bold text-red-500 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded hover:bg-red-500/20 transition-colors"
+                  >
+                    SPLICE: {formatTimestamp(selectedCase.spliceTime)}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* EXPANDED Waveform Canvas (Height 140px / h-36) */}
+            <div className={`relative rounded-lg overflow-hidden border mb-3 ${
+              isDarkMode ? 'border-[#16253c] bg-[#08101e]' : 'border-slate-200 bg-slate-50'
+            }`}>
+              <canvas
+                ref={waveformCanvasRef}
+                width={850}
+                height={140}
+                className="w-full h-36 block cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const clickX = e.clientX - rect.left;
+                  const ratio = clickX / rect.width;
+                  handleSeek(ratio * selectedCase.duration);
+                }}
+              />
+
+              {/* Anomaly Floating Tag */}
+              {selectedCase.anomalyTime > 0 && (
+                <div 
+                  className="absolute top-1.5 -translate-x-1/2 flex flex-col items-center pointer-events-none"
+                  style={{ left: `${(selectedCase.anomalyTime / selectedCase.duration) * 100}%` }}
+                >
+                  <span className="text-[9px] font-mono font-bold uppercase text-amber-500 bg-amber-950/80 border border-amber-500/70 px-1.5 py-0.2 rounded shadow">
+                    ANOMALY
+                  </span>
+                  <div className="w-1.5 h-1.5 rotate-45 bg-amber-500 -mt-0.5" />
+                </div>
+              )}
+
+              {/* Splice Floating Tag */}
+              {selectedCase.spliceTime > 0 && (
+                <div 
+                  className="absolute top-1.5 -translate-x-1/2 flex flex-col items-center pointer-events-none"
+                  style={{ left: `${(selectedCase.spliceTime / selectedCase.duration) * 100}%` }}
+                >
+                  <span className="text-[9px] font-mono font-bold uppercase text-red-500 bg-red-950/80 border border-red-500/70 px-1.5 py-0.2 rounded shadow">
+                    SPLICE
+                  </span>
+                  <div className="w-1.5 h-1.5 rotate-45 bg-red-500 -mt-0.5" />
+                </div>
+              )}
+
+              {/* Timeline Ticks */}
+              <div className={`flex justify-between px-3 py-1 border-t text-[10px] font-mono ${
+                isDarkMode ? 'bg-[#060c18] border-[#132034] text-slate-500' : 'bg-white border-slate-200 text-slate-600'
+              }`}>
+                <span>0:00</span>
+                <span>0:05</span>
+                <span>0:10</span>
+                <span>0:15</span>
+                <span>0:20</span>
+                <span>0:25</span>
+                <span>0:30</span>
+                <span>0:35</span>
+                <span>0:38</span>
+              </div>
+            </div>
+
+            {/* Audio Controls Bar */}
+            <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+              isDarkMode ? 'bg-[#08111e] border-[#132238]' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <button
+                onClick={() => handleSeek(Math.max(0, currentTime - 5))}
+                className={`p-1.5 rounded transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Rewind 5s"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={togglePlayPause}
+                className="w-9 h-9 rounded-full bg-[#14b8a6] hover:bg-[#0d9488] text-slate-950 flex items-center justify-center shadow transition-all shrink-0 font-bold"
+                title={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? <Pause className="w-4 h-4 fill-slate-950" /> : <Play className="w-4 h-4 fill-slate-950 ml-0.5" />}
+              </button>
+
+              <button
+                onClick={() => handleSeek(Math.min(selectedCase.duration, currentTime + 5))}
+                className={`p-1.5 rounded transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Forward 5s"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+
+              {/* Scrubber Slider */}
+              <div className="flex-1 relative flex items-center mx-2">
+                <input
+                  type="range"
+                  min={0}
+                  max={selectedCase.duration}
+                  step={0.1}
+                  value={currentTime}
+                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-300 dark:bg-[#17253b] rounded-lg appearance-none cursor-pointer accent-[#14b8a6]"
+                />
+              </div>
+
+              <div className={`text-xs font-mono shrink-0 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <span className="font-bold">{formatTimestamp(currentTime)}</span>
+                <span className="text-slate-400 mx-1">/</span>
+                <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{formatTimestamp(selectedCase.duration)}</span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setIsMuted(!isMuted);
+                  if (audioRef.current) audioRef.current.muted = !isMuted;
+                }}
+                className={`p-1.5 rounded transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Card 2: MEL-SPECTROGRAM — ECAPA-TDNN ANALYSIS (EXPANDED height) */}
+          <div className={`rounded-xl p-5 border transition-colors ${cardBgClass}`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`text-xs font-bold uppercase tracking-wider font-mono ${
+                isDarkMode ? 'text-[#2dd4bf]' : 'text-teal-700'
+              }`}>
+                MEL-SPECTROGRAM — ECAPA-TDNN ANALYSIS
+              </h3>
+              <span className="text-xs font-mono font-bold text-amber-500">
+                {selectedCase.temporalBreakText}
+              </span>
+            </div>
+
+            {/* EXPANDED Spectrogram Canvas (Height 190px / h-48) */}
+            <div className={`relative rounded-lg overflow-hidden border ${
+              isDarkMode ? 'border-[#16253c] bg-[#050c18]' : 'border-slate-200 bg-slate-900'
+            }`}>
+              <div className="flex">
+                {/* Y-Axis */}
+                <div className={`w-14 border-r py-3 px-1 flex flex-col justify-between items-end text-[10px] font-mono shrink-0 select-none ${
+                  isDarkMode ? 'bg-[#060d1b] border-[#132238] text-slate-400' : 'bg-slate-900 border-slate-700 text-slate-400'
+                }`}>
+                  <span>8000</span>
+                  <span>6000</span>
+                  <span>4000</span>
+                  <span>2000</span>
+                  <span>0</span>
+                </div>
+
+                {/* Canvas Body */}
+                <div className="flex-1 relative">
+                  <canvas
+                    ref={spectrogramCanvasRef}
+                    width={800}
+                    height={190}
+                    className="w-full h-48 block"
+                  />
+                </div>
+              </div>
+
+              {/* X-Axis */}
+              <div className={`flex justify-between pl-16 pr-4 py-1.5 border-t text-[10px] font-mono ${
+                isDarkMode ? 'bg-[#060c18] border-[#132034] text-slate-500' : 'bg-slate-900 border-slate-700 text-slate-400'
+              }`}>
+                <span>0:00</span>
+                <span>0:05</span>
+                <span>0:10</span>
+                <span>0:15</span>
+                <span>0:20</span>
+                <span>0:25</span>
+                <span>0:30</span>
+                <span>0:35</span>
+                <span>0:38</span>
+              </div>
+            </div>
+
+            <div className={`flex items-center justify-between mt-2 text-[11px] font-mono ${
+              isDarkMode ? 'text-slate-400' : 'text-slate-500'
+            }`}>
+              <span>Y: Frequency (Hz) [0 - 8000 Hz]</span>
+              <span>X: Time (s) · ECAPA-TDNN 192-dim frame analysis</span>
+            </div>
+          </div>
+
+          {/* Card 3: Forensic Specifications & Evidence Metadata */}
+          <div className={`rounded-xl p-5 border transition-colors space-y-3.5 ${cardBgClass}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-sans">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isDarkMode ? 'bg-[#111e33] text-cyan-400' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                }`}>
+                  <Radio className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className={`text-[11px] block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Submission</span>
+                  <span className={`font-semibold font-mono text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {selectedCase.sourceType}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isDarkMode ? 'bg-[#111e33] text-amber-400' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className={`text-[11px] block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Duration / Anomaly</span>
+                  <span className={`font-semibold font-mono text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {formatTimestamp(selectedCase.duration)} · {selectedCase.anomalyTime > 0 ? `Break at ${formatTimestamp(selectedCase.anomalyTime)}` : 'Clean'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isDarkMode ? 'bg-[#111e33] text-indigo-400' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                }`}>
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className={`text-[11px] block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Principal</span>
+                  <span className={`font-semibold font-mono text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {selectedCase.principal}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  isDarkMode ? 'bg-[#111e33] text-emerald-400' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}>
+                  <Cpu className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className={`text-[11px] block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Model</span>
+                  <span className={`font-semibold font-mono text-xs ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    {selectedCase.model}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Linked Telecom Cell Tower Row */}
+            <div className={`pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs font-mono ${
+              isDarkMode ? 'border-[#142339]' : 'border-slate-200'
+            }`}>
+              <div className={`flex items-center gap-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <MapPin className="w-4 h-4 text-cyan-500" />
+                <span>Tower Cell: <span className="font-bold">{selectedCase.cellTowerId}</span></span>
+                <span className={isDarkMode ? 'text-slate-500' : 'text-slate-500'}>({selectedCase.locationArea})</span>
+              </div>
+              <button
+                onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
+                className={`flex items-center gap-1 font-bold text-xs hover:underline ${
+                  isDarkMode ? 'text-cyan-400 hover:text-white' : 'text-teal-700 hover:text-teal-900'
+                }`}
+              >
+                <span>Open in Location Intelligence (Ref #{selectedCase.linkedCallRef})</span>
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= RIGHT COLUMN (1:1 Voiceprint & Anti-Spoofing) ================= */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* Card 4: 1:1 VOICEPRINT VERIFICATION */}
+          <div className={`rounded-xl p-5 border transition-colors ${cardBgClass}`}>
+            <h3 className={`text-xs font-bold uppercase tracking-wider font-mono mb-3.5 ${
+              isDarkMode ? 'text-[#2dd4bf]' : 'text-teal-700'
+            }`}>
+              1:1 VOICEPRINT VERIFICATION
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              
+              {/* Left Sub-card: Voiceprint Comparison Dual Line */}
+              <div className={`md:col-span-7 p-3.5 rounded-lg border ${subBoxBgClass}`}>
+                <div className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${
+                  isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                }`}>
+                  VOICEPRINT COMPARISON
+                </div>
+
+                {/* Legend */}
+                <div className="space-y-1 mb-2.5 text-[10px] font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-1 bg-[#0d9488] dark:bg-[#2dd4bf] inline-block rounded" />
+                    <span className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Enrolled Template #P-0047</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-1 bg-slate-900 dark:bg-white inline-block rounded" />
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>Submitted Audio</span>
+                  </div>
+                </div>
+
+                {/* Dual Line Curve Canvas */}
+                <div className={`relative rounded overflow-hidden border ${
+                  isDarkMode ? 'border-[#132034] bg-[#060f1c]' : 'border-slate-200 bg-white'
+                }`}>
+                  <canvas
+                    ref={voiceprintCanvasRef}
+                    width={400}
+                    height={150}
+                    className="w-full h-36 block"
+                  />
+                  <div className={`flex justify-between px-2.5 py-0.5 text-[9px] font-mono border-t ${
+                    isDarkMode ? 'bg-[#050c18] border-[#101b2c] text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}>
+                    <span>0:00</span>
+                    <span>0:10</span>
+                    <span>0:20</span>
+                    <span>0:30</span>
+                    <span>0:38</span>
+                  </div>
+                </div>
+
+                {selectedCase.anomalyTime > 0 && (
+                  <div className={`text-center text-[10px] font-mono mt-2 ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    Divergence at {formatTimestamp(selectedCase.anomalyTime)}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Sub-card: Similarity Score & Badges */}
+              <div className={`md:col-span-5 p-3.5 rounded-lg border flex flex-col justify-between ${subBoxBgClass}`}>
+                <div>
+                  <div className={`text-[11px] font-semibold uppercase tracking-wider mb-1 ${
+                    isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                  }`}>
+                    SIMILARITY SCORE
+                  </div>
+
+                  <div className="text-4xl lg:text-5xl font-black text-amber-500 font-mono tracking-tight my-1">
+                    {selectedCase.similarityScore}%
+                  </div>
+
+                  <div className={`text-[10px] font-mono mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Similarity score · Threshold: {selectedCase.thresholdScore}%
+                  </div>
+
+                  {/* Horizontal Threshold Bar */}
+                  <div className="space-y-1 mb-4">
+                    <div className="relative h-2.5 bg-slate-200 dark:bg-[#16253c] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full"
+                        style={{ width: `${selectedCase.similarityScore}%` }}
+                      />
+                      <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-teal-600 dark:bg-cyan-400 z-10"
+                        style={{ left: `${selectedCase.thresholdScore}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[9px] font-mono text-slate-500">
+                      <span>0%</span>
+                      <span className="text-teal-600 dark:text-cyan-400 font-bold">{selectedCase.thresholdScore}% Threshold</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Badges */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>Voiceprint match</span>
+                    <span className="font-mono font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/40 px-2 py-0.5 rounded text-[10px]">
+                      {selectedCase.similarityScore >= selectedCase.thresholdScore 
+                        ? `MATCH — ${selectedCase.similarityScore}%` 
+                        : `BELOW THRESHOLD — ${selectedCase.similarityScore}%`}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>Temporal consistency</span>
+                    <span className="font-mono font-semibold text-red-600 dark:text-red-400 bg-red-500/10 border border-red-500/40 px-2 py-0.5 rounded text-[10px]">
+                      {selectedCase.anomalyTime > 0 ? `BREAK CONFIRMED — ${formatTimestamp(selectedCase.anomalyTime)}` : 'CONSISTENT'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Clear distinction notice */}
+            <div className={`mt-3.5 p-2.5 border rounded text-[10px] font-mono leading-relaxed ${
+              isDarkMode ? 'bg-[#08101e] border-[#132238] text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+            }`}>
+              <span className="text-amber-500 font-bold">Biometric Disclaimer: </span>
+              Speaker similarity measures acoustic distance; low similarity does not prove synthetic speech, and high similarity does not prove natural audio.
+            </div>
+          </div>
+
+          {/* Card 5: ANTI-SPOOFING ANALYSIS (Spacious & Comfortable) */}
+          <div className={`rounded-xl p-5 border transition-colors ${cardBgClass}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-xs font-bold uppercase tracking-wider font-mono ${
+                isDarkMode ? 'text-[#2dd4bf]' : 'text-teal-700'
+              }`}>
+                ANTI-SPOOFING ANALYSIS
+              </h3>
+              <span className={`text-xs font-bold font-mono px-2.5 py-0.5 rounded flex items-center gap-1.5 ${
+                selectedCase.authenticityCategory === 'HIGH RISK'
+                  ? 'bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/40'
+                  : selectedCase.authenticityCategory === 'REVIEW REQUIRED'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/40'
+                  : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'
+              }`}>
+                <AlertTriangle className="w-3.5 h-3.5" />
+                {selectedCase.authenticityCategory}
+              </span>
+            </div>
+
+            {/* Analysis Rows */}
+            <div className="space-y-3 mb-4">
+              
+              {/* Row 1: Voice Synthesis Detection */}
+              <div className={`flex items-center justify-between p-3.5 rounded-lg border ${subBoxBgClass}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-[#111e33] text-[#2dd4bf]' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                  }`}>
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      Voice synthesis detection
+                    </div>
+                    <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Neural TTS signature identified — voice cloning attack
+                    </div>
+                  </div>
+                </div>
+                <span className={`font-mono font-bold px-3 py-1 rounded text-xs ${
+                  selectedCase.voiceSynthesisPct > 60
+                    ? 'text-red-500 bg-red-500/10 border border-red-500/50'
+                    : 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/50'
+                }`}>
+                  DETECTED {selectedCase.voiceSynthesisPct}%
+                </span>
+              </div>
+
+              {/* Row 2: Playback Attack */}
+              <div className={`flex items-center justify-between p-3.5 rounded-lg border ${subBoxBgClass}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-[#111e33] text-[#2dd4bf]' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                  }`}>
+                    <Play className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      Playback attack
+                    </div>
+                    <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Recording replay artefacts suspected
+                    </div>
+                  </div>
+                </div>
+                <span className="font-mono font-bold text-amber-500 bg-amber-500/10 border border-amber-500/50 px-3 py-1 rounded text-xs">
+                  SUSPECTED {selectedCase.playbackAttackPct}%
+                </span>
+              </div>
+
+              {/* Row 3: Temporal Coherence */}
+              <div className={`flex items-center justify-between p-3.5 rounded-lg border ${subBoxBgClass}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    isDarkMode ? 'bg-[#111e33] text-[#2dd4bf]' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                  }`}>
+                    <Sliders className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      Temporal coherence
+                    </div>
+                    <div className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Splice artefact at {formatTimestamp(selectedCase.anomalyTime)} — confirmed break
+                    </div>
+                  </div>
+                </div>
+                <span className="font-mono font-bold text-red-500 bg-red-500/10 border border-red-500/50 px-3 py-1 rounded text-xs">
+                  {selectedCase.anomalyTime > 0 ? 'CONFIRMED' : 'NORMAL'}
+                </span>
+              </div>
+
+            </div>
+
+            {/* Bottom Status Pills (Spacious & 100% Visible) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center py-2.5 px-3 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-semibold">
+                Voiceprint match BELOW THRESHOLD
+              </div>
+              <div className="text-center py-2.5 px-3 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono text-xs font-semibold">
+                Human review REQUIRED
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* 3. Bottom Sticky Action Bar (Theme-Aware) */}
+      <div className={`fixed bottom-0 left-0 right-0 py-3.5 px-6 z-40 backdrop-blur-md border-t transition-colors ${
+        isDarkMode 
+          ? 'bg-[#08101e]/95 border-[#15233a] text-white shadow-2xl' 
+          : 'bg-white/95 border-slate-200 text-slate-900 shadow-xl'
+      }`}>
+        <div className="max-w-[1780px] mx-auto flex flex-wrap items-center justify-between gap-4">
+          
+          {/* Left Button: Review */}
+          <button
+            onClick={() => setIsReviewModalOpen(true)}
+            className={`flex items-center gap-2.5 px-6 py-3 rounded-xl border font-semibold text-sm transition-all shadow-md ${
+              isDarkMode 
+                ? 'border-teal-500/50 bg-teal-950/30 hover:bg-teal-900/40 text-teal-300 hover:text-white' 
+                : 'border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800'
+            }`}
+          >
+            <Ear className="w-5 h-5 text-teal-500" />
+            <span>Review</span>
+          </button>
+
+          {/* Center Banner / Alert Button */}
+          <button
+            onClick={() => setIsReviewModalOpen(true)}
+            className="flex items-center gap-3 px-8 py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-bold text-base shadow-lg shadow-red-950/40 border border-red-500/60 transition-all hover:scale-[1.01]"
+          >
+            <AlertTriangle className="w-5 h-5 text-white animate-pulse" />
+            <span>Voice Cloning Detected — {selectedCase.voiceSynthesisPct}%</span>
+          </button>
+
+          {/* Connected Geospatial Investigation Module Button */}
+          <button
+            onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
+            className="flex items-center gap-2.5 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.01]"
+          >
+            <MapPin className="w-4 h-4 text-white" />
+            <span>Geospatial Track (Ref #{selectedCase.linkedCallRef})</span>
+          </button>
+
+          {/* Right Button: Evidence-Ready — Export Pack */}
+          <button
+            onClick={handleExportEvidencePack}
+            disabled={isEvidenceExporting}
+            className="flex items-center gap-2.5 px-7 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm md:text-base shadow-md transition-all hover:scale-[1.01] disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-5 h-5 text-white" />
+            <span>{isEvidenceExporting ? 'Generating Pack...' : 'Evidence-Ready — Export Pack'}</span>
+          </button>
+
+        </div>
+      </div>
+
+      {/* 4. Forensic Deep Review Modal */}
+      {isReviewModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto border ${
+            isDarkMode ? 'bg-[#0b1422] border-[#1b2f4c] text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <button
+              onClick={() => setIsReviewModalOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700/50"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-500">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold">Forensic Investigation Audit</h2>
+                <p className="text-xs text-slate-400 font-mono">{selectedCase.code} · Deepfake Risk Assessment</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className={`p-3.5 rounded-xl border space-y-1.5 font-mono ${
+                isDarkMode ? 'bg-[#08101e] border-[#162740]' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>Evidence Identifier:</span>
+                  <span className="text-cyan-500 font-bold">{selectedCase.evidenceId}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-600'}>Linked Call Record:</span>
+                  <span className="text-blue-500 font-bold">Ref #{selectedCase.linkedCallRef}</span>
+                </div>
+                <div className={`text-[10px] break-all ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                  SHA-256: <span className="font-mono">{selectedCase.sha256Hash}</span>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border space-y-2 ${
+                isDarkMode ? 'bg-[#08101e] border-[#162740]' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="font-semibold">Acoustic Signal Breakdown:</div>
+                <div className="grid grid-cols-2 gap-2 font-mono">
+                  <div>Vocoder Rolloff: <span className="text-red-500 font-bold">3840 Hz (Cutoff detected)</span></div>
+                  <div>Phase Discontinuity: <span className="text-amber-500 font-bold">0.82 (High)</span></div>
+                  <div>Micro-jitter Regularity: <span className="text-red-500 font-bold">0.94 (Unnatural)</span></div>
+                  <div>ECAPA Cosine Distance: <span className="text-amber-500 font-bold">0.387</span></div>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border space-y-2 ${
+                isDarkMode ? 'bg-[#08101e] border-[#162740]' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="font-semibold">Investigator Recommendation:</div>
+                <p className={`leading-relaxed font-sans ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  {selectedCase.explanationText}
+                  Biometric matching against enrolled principal resulted in {selectedCase.similarityScore}% (decision threshold: {selectedCase.thresholdScore}%).
+                  Immediate transaction pause and independent confirmation recommended under Section 43A of IT Act.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsReviewModalOpen(false);
+                  onNavigateToGeospatial(selectedCase.linkedCallRef);
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Open Location Track</span>
+              </button>
+              <button
+                onClick={() => {
+                  setIsReviewModalOpen(false);
+                  handleExportEvidencePack();
+                }}
+                className="px-5 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs flex items-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Evidence PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
