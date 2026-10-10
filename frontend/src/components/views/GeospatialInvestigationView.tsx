@@ -55,6 +55,21 @@ const RADIUS_PRESETS = [
   { label: '5 km', meters: 5000 }
 ];
 
+export type QueryCategoryType = 
+  | 'audio_queries'
+  | 'audit'
+  | 'basic'
+  | 'calls'
+  | 'calls_today'
+  | 'calls_with_loc'
+  | 'mms'
+  | 'sms'
+  | 'subs'
+  | 'device'
+  | 'internet'
+  | 'social_media'
+  | 'audit_trail';
+
 export const GeospatialInvestigationView: React.FC<Props> = ({
   selectedCallRef,
   onSelectCallRef,
@@ -63,6 +78,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 }) => {
   const [calls, setCalls] = useState<CallRecord[]>(DEFAULT_GEOSPATIAL_CALLS);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeQueryCategory, setActiveQueryCategory] = useState<QueryCategoryType>('calls');
   const [activeRef, setActiveRef] = useState<number>(selectedCallRef || DEFAULT_GEOSPATIAL_CALLS[0].ref_number);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCaseFilter, setSelectedCaseFilter] = useState<string>('ALL');
@@ -110,11 +126,139 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     return () => clearTimeout(timer);
   }, [isSidePanelOpen]);
 
+  // Category counts computed dynamically across all 56 intake records
+  const categoryCounts = useMemo<Record<QueryCategoryType, number>>(() => {
+    return {
+      basic: calls.length,
+      audio_queries: calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity)).length,
+      audit: calls.filter(c => c.category === 'audit').length,
+      calls: calls.filter(c => c.category === 'call' || (!c.category && c.direction)).length,
+      calls_today: calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026')).length,
+      calls_with_loc: calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number').length,
+      mms: calls.filter(c => c.category === 'mms').length,
+      sms: calls.filter(c => c.category === 'sms').length,
+      subs: calls.filter(c => c.category === 'subscriber').length,
+      device: calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY').length,
+      internet: calls.filter(c => c.category === 'internet').length,
+      social_media: calls.filter(c => c.category === 'social_media').length,
+      audit_trail: calls.filter(c => c.category === 'audit').length,
+    };
+  }, [calls]);
+
+  // Subset of calls matching the active query category
+  const categoryCalls = useMemo<CallRecord[]>(() => {
+    switch (activeQueryCategory) {
+      case 'audio_queries':
+        return calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
+      case 'audit':
+        return calls.filter(c => c.category === 'audit');
+      case 'calls':
+        return calls.filter(c => c.category === 'call' || (!c.category && c.direction));
+      case 'calls_today':
+        return calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
+      case 'calls_with_loc':
+        return calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
+      case 'mms':
+        return calls.filter(c => c.category === 'mms');
+      case 'sms':
+        return calls.filter(c => c.category === 'sms');
+      case 'subs':
+        return calls.filter(c => c.category === 'subscriber');
+      case 'device':
+        return calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
+      case 'internet':
+        return calls.filter(c => c.category === 'internet');
+      case 'social_media':
+        return calls.filter(c => c.category === 'social_media');
+      case 'audit_trail':
+        return calls.filter(c => c.category === 'audit');
+      case 'basic':
+      default:
+        return calls;
+    }
+  }, [calls, activeQueryCategory]);
+
+  // Handler for clicking any category node in the tree
+  const handleSelectQueryCategory = (cat: QueryCategoryType) => {
+    setActiveQueryCategory(cat);
+    let subset: CallRecord[] = [];
+    switch (cat) {
+      case 'audio_queries':
+        subset = calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
+        break;
+      case 'audit':
+      case 'audit_trail':
+        subset = calls.filter(c => c.category === 'audit');
+        break;
+      case 'calls':
+        subset = calls.filter(c => c.category === 'call' || (!c.category && c.direction));
+        break;
+      case 'calls_today':
+        subset = calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
+        break;
+      case 'calls_with_loc':
+        subset = calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
+        break;
+      case 'mms':
+        subset = calls.filter(c => c.category === 'mms');
+        break;
+      case 'sms':
+        subset = calls.filter(c => c.category === 'sms');
+        break;
+      case 'subs':
+        subset = calls.filter(c => c.category === 'subscriber');
+        break;
+      case 'device':
+        subset = calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
+        break;
+      case 'internet':
+        subset = calls.filter(c => c.category === 'internet');
+        break;
+      case 'social_media':
+        subset = calls.filter(c => c.category === 'social_media');
+        break;
+      case 'basic':
+      default:
+        subset = calls;
+        break;
+    }
+
+    if (subset.length > 0) {
+      const match = subset.find(c => c.ref_number === activeRef) || subset.find(c => c.latitude && c.longitude) || subset[0];
+      if (match) {
+        setActiveRef(match.ref_number);
+        onSelectCallRef(match.ref_number);
+        if (mapInstanceRef.current && match.latitude && match.longitude) {
+          mapInstanceRef.current.panTo([match.latitude, match.longitude], { animate: true });
+        }
+      }
+    }
+  };
+
+  const getCategoryLabel = (cat: QueryCategoryType): string => {
+    switch (cat) {
+      case 'audio_queries': return 'Audio Queries';
+      case 'audit': return 'Audit';
+      case 'basic': return 'Basic';
+      case 'calls': return 'Calls';
+      case 'calls_today': return 'Calls today';
+      case 'calls_with_loc': return 'Calls with Loc';
+      case 'mms': return 'MMS';
+      case 'sms': return 'SMS';
+      case 'subs': return 'Subs';
+      case 'device': return 'Device Queries';
+      case 'internet': return 'Internet Queries';
+      case 'social_media': return 'Social Media';
+      case 'audit_trail': return 'Audit Trail';
+      default: return 'Calls';
+    }
+  };
+
   // Automated Playback Ticker for Call Tracks
   useEffect(() => {
-    if (!isPlayingTrack || calls.length === 0) return;
+    if (!isPlayingTrack || categoryCalls.length === 0) return;
 
-    const sequenceCalls = calls.filter(c => c.latitude && c.longitude);
+    const sequenceCalls = categoryCalls.filter(c => c.latitude && c.longitude);
     if (sequenceCalls.length === 0) return;
 
     const interval = setInterval(() => {
@@ -128,7 +272,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [isPlayingTrack, calls, onSelectCallRef]);
+  }, [isPlayingTrack, categoryCalls, onSelectCallRef]);
 
   // Load Calls Data from Backend API
   const loadCalls = async () => {
@@ -153,8 +297,12 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
   // Currently active selected call record
   const selectedRecord = useMemo(() => {
-    return calls.find(c => c.ref_number === activeRef) || calls[0] || DEFAULT_GEOSPATIAL_CALLS[0];
-  }, [calls, activeRef]);
+    return categoryCalls.find(c => c.ref_number === activeRef) || 
+      categoryCalls[0] || 
+      calls.find(c => c.ref_number === activeRef) || 
+      calls[0] || 
+      DEFAULT_GEOSPATIAL_CALLS[0];
+  }, [categoryCalls, calls, activeRef]);
 
   // Haversine distance calculator in frontend
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -169,9 +317,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     return R * c;
   };
 
-  // Filtered Calls list
+  // Filtered Calls list based on active category, search text, and radius
   const filteredCalls = useMemo(() => {
-    let result = calls.map(rec => {
+    let result = categoryCalls.map(rec => {
       let dist: number | null = null;
       if (selectedRecord?.latitude && selectedRecord?.longitude && rec.latitude && rec.longitude) {
         dist = Math.round(calculateDistance(
@@ -190,7 +338,8 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
         r.ref_number.toString().includes(q) ||
         r.target_number.includes(q) ||
         r.first_tower.toLowerCase().includes(q) ||
-        r.direction.toLowerCase().includes(q)
+        r.direction.toLowerCase().includes(q) ||
+        (r.category && r.category.toLowerCase().includes(q))
       );
     }
 
@@ -203,7 +352,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     }
 
     return result;
-  }, [calls, searchQuery, selectedCaseFilter, selectedRadiusMeters, filterWithinRadiusOnly, selectedRecord]);
+  }, [categoryCalls, searchQuery, selectedCaseFilter, selectedRadiusMeters, filterWithinRadiusOnly, selectedRecord]);
 
   // Sector wedge polygon calculator
   const getSectorPolygon = (centerLat: number, centerLng: number, radiusMeters: number, azimuth: number, beamwidth: number): [number, number][] => {
@@ -285,8 +434,8 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     // Clear previous dynamic layers
     layerGroup.clearLayers();
 
-    // Render Tower Markers & Sectors
-    calls.forEach((rec) => {
+    // Render Tower Markers & Sectors for the active category
+    categoryCalls.forEach((rec) => {
       if (!rec.latitude || !rec.longitude) return;
 
       const isCurrent = rec.ref_number === activeRef;
@@ -355,6 +504,10 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       marker.on('click', () => {
         setActiveRef(rec.ref_number);
         onSelectCallRef(rec.ref_number);
+        setIsSidePanelOpen(true);
+        if (mapInstanceRef.current && rec.latitude && rec.longitude) {
+          mapInstanceRef.current.panTo([rec.latitude, rec.longitude], { animate: true });
+        }
       });
 
       // Tooltip
@@ -369,7 +522,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     });
 
     // 3. Track Polylines between consecutive calls of the active case
-    const caseCalls = calls
+    const caseCalls = categoryCalls
       .filter(c => c.case_id === selectedRecord?.case_id && c.latitude && c.longitude)
       .sort((a, b) => a.ref_number - b.ref_number);
 
@@ -490,7 +643,41 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
     return () => clearTimeout(timer);
 
-  }, [calls, activeRef, selectedRadiusMeters, baseMapLayer, visibleSubjects, selectedRecord, isRadarAnimationActive]);
+  }, [categoryCalls, calls, activeRef, selectedRadiusMeters, baseMapLayer, visibleSubjects, selectedRecord, isRadarAnimationActive]);
+
+  // Helper for rendering interactive query tree nodes
+  const renderTreeItem = (id: QueryCategoryType, label: string, icon?: React.ReactNode) => {
+    const isSelected = activeQueryCategory === id;
+    const count = categoryCounts[id] ?? 0;
+
+    return (
+      <div
+        key={id}
+        onClick={() => handleSelectQueryCategory(id)}
+        className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer transition-colors border ${
+          isSelected
+            ? (isDarkMode 
+                ? 'bg-[#12312f] border-[#2ec4b6]/60 text-[#2ec4b6] font-bold shadow-sm shadow-[#2ec4b6]/20' 
+                : 'bg-teal-50 border-teal-400 text-teal-800 font-bold')
+            : (isDarkMode 
+                ? 'border-transparent text-[#86989f] hover:text-[#d6e1e5] hover:bg-[#1a2327]' 
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100')
+        }`}
+      >
+        <span className="flex items-center gap-1.5 truncate">
+          {icon || <FileText className="w-3 h-3 text-[#86989f]" />}
+          <span className="truncate">{label}</span>
+        </span>
+        <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0 ml-1.5 ${
+          isSelected
+            ? (isDarkMode ? 'bg-[#141a1d] text-[#2ec4b6] border border-[#2ec4b6]/50' : 'bg-teal-200 text-teal-900 font-bold')
+            : (isDarkMode ? 'bg-[#141a1d] text-[#86989f] border border-[#25323a]' : 'bg-slate-200 text-slate-700')
+        }`}>
+          {count}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <div className={`flex-1 flex flex-col h-[calc(100vh-50px)] font-sans select-none overflow-hidden transition-colors ${
@@ -594,52 +781,25 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                       </div>
 
                       {/* Sub-queries */}
-                      <div className={`pl-5 space-y-0.5 ${isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}`}>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Audio Queries</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Audit</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Basic</div>
-                        
-                        {/* CALLS (Active query node: Teal tint #12312f) */}
-                        <div className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer border ${
-                          isDarkMode 
-                            ? 'bg-[#12312f] border-[#2ec4b6]/50 text-[#2ec4b6] font-bold' 
-                            : 'bg-teal-50 border-teal-300 text-teal-800 font-bold'
-                        }`}>
-                          <span className="flex items-center gap-1.5">
-                            <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />
-                            Calls
-                          </span>
-                          <span className={`text-[10px] px-1.5 rounded font-mono ${
-                            isDarkMode ? 'bg-[#141a1d] text-[#2ec4b6] border border-[#2ec4b6]/40' : 'bg-teal-200 text-teal-900'
-                          }`}>
-                            {calls.length}
-                          </span>
-                        </div>
-
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Calls today</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Calls with Loc</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">MMS</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">SMS</div>
-                        <div className="px-2 py-0.5 hover:text-white cursor-pointer">Subs</div>
+                      <div className="pl-4 space-y-0.5">
+                        {renderTreeItem('audio_queries', 'Audio Queries', <Volume2 className="w-3 h-3 text-[#2ec4b6]" />)}
+                        {renderTreeItem('audit', 'Audit', <ShieldAlert className="w-3 h-3 text-[#f0a73a]" />)}
+                        {renderTreeItem('basic', 'Basic', <Layers className="w-3 h-3 text-[#8fb3c9]" />)}
+                        {renderTreeItem('calls', 'Calls', <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />)}
+                        {renderTreeItem('calls_today', 'Calls today', <Radio className="w-3 h-3 text-[#2ec4b6]" />)}
+                        {renderTreeItem('calls_with_loc', 'Calls with Loc', <MapPin className="w-3 h-3 text-[#2ec4b6]" />)}
+                        {renderTreeItem('mms', 'MMS', <FileText className="w-3 h-3 text-[#f0a73a]" />)}
+                        {renderTreeItem('sms', 'SMS', <FileText className="w-3 h-3 text-[#8fb3c9]" />)}
+                        {renderTreeItem('subs', 'Subs', <Folder className="w-3 h-3 text-[#2ec4b6]" />)}
                       </div>
                     </div>
 
-                    {/* Other Branches */}
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
-                      <Folder className="w-3 h-3" />
-                      <span>Device Queries</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
-                      <Folder className="w-3 h-3" />
-                      <span>Internet Queries</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
-                      <Folder className="w-3 h-3" />
-                      <span>Social Media</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
-                      <Folder className="w-3 h-3" />
-                      <span>Audit Trail</span>
+                    {/* Other Branches under Acceptance */}
+                    <div className="space-y-0.5 pt-1">
+                      {renderTreeItem('device', 'Device Queries', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
+                      {renderTreeItem('internet', 'Internet Queries', <Folder className="w-3.5 h-3.5 text-[#8fb3c9]" />)}
+                      {renderTreeItem('social_media', 'Social Media', <Folder className="w-3.5 h-3.5 text-[#f0a73a]" />)}
+                      {renderTreeItem('audit_trail', 'Audit Trail', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
                     </div>
                   </div>
                 )}
@@ -667,7 +827,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             <div className="flex items-center gap-2">
               <div className="px-3 py-1 bg-[#12312f] border-t-2 border-[#2ec4b6] text-[#2ec4b6] font-bold rounded-t flex items-center gap-2">
                 <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />
-                <span>Query {selectedRecord?.target_number || '5712747502'} (#{selectedRecord?.case_id || '1626'})</span>
+                <span>Query: {getCategoryLabel(activeQueryCategory)} ({filteredCalls.length}) · Active #{selectedRecord?.ref_number} ({selectedRecord?.target_number})</span>
               </div>
               <div className="px-3 py-1 bg-[#1a2327] text-[#86989f] hover:text-[#d6e1e5] cursor-pointer rounded-t">
                 Map View
@@ -1069,7 +1229,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                 <span className={`font-bold uppercase tracking-wide ${
                   isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-700'
                 }`}>
-                  Query Result - Calls
+                  Query Result - {getCategoryLabel(activeQueryCategory)}
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded border ${
                   isDarkMode ? 'text-[#86989f] bg-[#1a2327] border-[#25323a]' : 'text-slate-600 bg-white border-slate-300'
@@ -1130,6 +1290,10 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                         onClick={() => {
                           setActiveRef(rec.ref_number);
                           onSelectCallRef(rec.ref_number);
+                          setIsSidePanelOpen(true);
+                          if (mapInstanceRef.current && rec.latitude && rec.longitude) {
+                            mapInstanceRef.current.panTo([rec.latitude, rec.longitude], { animate: true });
+                          }
                         }}
                         className={`cursor-pointer transition-colors ${rowBgClass}`}
                       >

@@ -170,6 +170,7 @@ export interface CallRecord {
   scam_risk?: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string | null;
   distance_meters?: number | null;
   consent_token?: string | null;
+  category?: 'call' | 'sms' | 'mms' | 'device' | 'internet' | 'social_media' | 'subscriber' | 'audit' | string;
 }
 
 export type ActiveNavTab = 'voice_analysis' | 'geospatial' | 'dashboard' | 'new_analysis' | 'history' | 'models' | 'settings';
