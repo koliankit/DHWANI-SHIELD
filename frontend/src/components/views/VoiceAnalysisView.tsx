@@ -25,10 +25,18 @@ import {
   Hash, 
   ExternalLink,
   Link2,
-  Navigation
+  Navigation,
+  Sparkles,
+  Layers,
+  Globe,
+  Building2,
+  Landmark,
+  Scale,
+  Zap
 } from 'lucide-react';
 import { AnalysisResponse } from '../../types';
 import { api } from '../../services/api';
+import { telecomAudioEngine, CASE_TRANSCRIPTS } from '../../services/telecomAudioEngine';
 
 interface Props {
   analysisData: AnalysisResponse | null;
@@ -299,6 +307,13 @@ export const VoiceAnalysisView: React.FC<Props> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(15.3); // Initial timestamp matching screenshot
   const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(0.85);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [visualizerGain, setVisualizerGain] = useState<number>(1.2);
+  const [acousticFilter, setAcousticFilter] = useState<'raw' | 'telecom' | 'aasist'>('telecom');
+  const [visualizerTheme, setVisualizerTheme] = useState<'teal' | 'neon' | 'amber'>('teal');
+  const [audioNotice, setAudioNotice] = useState<string | null>(null);
+
   const [isCaseDropdownOpen, setIsCaseDropdownOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isEvidenceExporting, setIsEvidenceExporting] = useState(false);
@@ -313,7 +328,6 @@ export const VoiceAnalysisView: React.FC<Props> = ({
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const spectrogramCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const voiceprintCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -356,18 +370,17 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
   }, [analysisData]);
 
-  // Load real audio if available
+  // Synchronize audio engine on case change
   useEffect(() => {
-    const audio = new Audio(`/api/samples/${selectedCase.sampleKey}/audio`);
-    audioRef.current = audio;
-
-    audio.onended = () => {
+    if (isPlaying) {
+      telecomAudioEngine.pause();
       setIsPlaying(false);
-      setCurrentTime(selectedCase.duration);
-    };
+    }
+    telecomAudioEngine.setVolume(isMuted ? 0 : volume);
+    telecomAudioEngine.setRate(playbackSpeed);
 
     return () => {
-      audio.pause();
+      telecomAudioEngine.pause();
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, [selectedCase]);
@@ -377,12 +390,13 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     if (isPlaying) {
       let lastTime = performance.now();
       const tick = (now: number) => {
-        const delta = (now - lastTime) / 1000;
+        const delta = ((now - lastTime) / 1000) * playbackSpeed;
         lastTime = now;
         setCurrentTime((prev) => {
           const next = prev + delta;
           if (next >= selectedCase.duration) {
             setIsPlaying(false);
+            telecomAudioEngine.pause();
             return selectedCase.duration;
           }
           return next;
@@ -397,30 +411,62 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [isPlaying, selectedCase.duration]);
+  }, [isPlaying, selectedCase.duration, playbackSpeed]);
 
-  // Audio Play / Pause
+  // Audio Play / Pause with Real Audible Synthesis
   const togglePlayPause = () => {
     if (isPlaying) {
-      if (audioRef.current) audioRef.current.pause();
+      telecomAudioEngine.pause();
       setIsPlaying(false);
     } else {
       if (currentTime >= selectedCase.duration) {
         setCurrentTime(0);
       }
-      if (audioRef.current) {
-        audioRef.current.currentTime = Math.min(currentTime, audioRef.current.duration || selectedCase.duration);
-        audioRef.current.play().catch(() => {});
-      }
+      telecomAudioEngine.setVolume(isMuted ? 0 : volume);
+      telecomAudioEngine.setRate(playbackSpeed);
+      telecomAudioEngine.play(selectedCase.id, undefined, () => {
+        setIsPlaying(false);
+        setCurrentTime(selectedCase.duration);
+      });
       setIsPlaying(true);
+      setAudioNotice(`Audible Telecom Sound Output Active (${Math.round(volume * 100)}% Volume)`);
+      setTimeout(() => setAudioNotice(null), 3500);
     }
+  };
+
+  const handleTestSpeaker = () => {
+    telecomAudioEngine.setVolume(volume);
+    telecomAudioEngine.playAcousticPing(880, 0.35);
+    setAudioNotice(`Speaker Verification Sound Emitted at ${Math.round(volume * 100)}% Volume`);
+    setTimeout(() => setAudioNotice(null), 3000);
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    setVolume(newVol);
+    if (isMuted && newVol > 0) setIsMuted(false);
+    telecomAudioEngine.setVolume(newVol);
+  };
+
+  const handleToggleMute = () => {
+    const muted = telecomAudioEngine.toggleMute();
+    setIsMuted(muted);
+    setAudioNotice(muted ? 'Audio Muted' : `Audio Unmuted (${Math.round(volume * 100)}%)`);
+    setTimeout(() => setAudioNotice(null), 2000);
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    telecomAudioEngine.setRate(speed);
   };
 
   const handleSeek = (newTime: number) => {
     const clamped = Math.max(0, Math.min(newTime, selectedCase.duration));
     setCurrentTime(clamped);
-    if (audioRef.current && !isNaN(audioRef.current.duration)) {
-      audioRef.current.currentTime = clamped;
+    if (isPlaying) {
+      telecomAudioEngine.play(selectedCase.id, undefined, () => {
+        setIsPlaying(false);
+        setCurrentTime(selectedCase.duration);
+      });
     }
   };
 
@@ -486,48 +532,67 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
   };
 
-  // Draw Waveform Canvas (Theme-Aware: Light vs Dark)
+  // 1. Draw 4K Ultra-HD Waveform Canvas (Retina DPI Scaled + Live Audio Reactive)
   useEffect(() => {
     const canvas = waveformCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
+    const dpr = Math.max(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const cssWidth = rect.width || 850;
+    const cssHeight = rect.height || 140;
+
+    const pixelWidth = Math.round(cssWidth * dpr);
+    const pixelHeight = Math.round(cssHeight * dpr);
+
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
 
     // Canvas background
     ctx.fillStyle = isDarkMode ? '#141a1d' : '#f8fafc';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, cssWidth, cssHeight);
 
-    // Subtle horizontal grid line
+    // Subtle horizontal center grid line
     ctx.strokeStyle = isDarkMode ? '#25323a' : 'rgba(0, 0, 0, 0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
+    ctx.moveTo(0, cssHeight / 2);
+    ctx.lineTo(cssWidth, cssHeight / 2);
     ctx.stroke();
 
+    // Query live audio frequency data if currently playing
+    const freqData = new Uint8Array(64);
+    if (isPlaying) {
+      telecomAudioEngine.getByteFrequencyData(freqData);
+    }
+
     const barCount = 200;
-    const step = width / barCount;
-    const anomalyX = (selectedCase.anomalyTime / selectedCase.duration) * width;
-    const spliceX = (selectedCase.spliceTime / selectedCase.duration) * width;
-    const currentX = (currentTime / selectedCase.duration) * width;
+    const step = cssWidth / barCount;
+    const anomalyX = (selectedCase.anomalyTime / selectedCase.duration) * cssWidth;
+    const spliceX = (selectedCase.spliceTime / selectedCase.duration) * cssWidth;
+    const currentX = (currentTime / selectedCase.duration) * cssWidth;
 
     // Suspicious segment band (#f0a73a at 25%)
     if (selectedCase.anomalyTime > 0) {
       const bandEndX = selectedCase.spliceTime > 0 
-        ? (selectedCase.spliceTime / selectedCase.duration) * width 
-        : Math.min(width, anomalyX + (width * 0.16));
+        ? (selectedCase.spliceTime / selectedCase.duration) * cssWidth 
+        : Math.min(cssWidth, anomalyX + (cssWidth * 0.16));
       ctx.fillStyle = 'rgba(240, 167, 58, 0.25)';
-      ctx.fillRect(anomalyX, 0, bandEndX - anomalyX, height);
+      ctx.fillRect(anomalyX, 0, bandEndX - anomalyX, cssHeight);
     }
 
     // High-risk segment band (#e5534b at 30%)
     if (selectedCase.spliceTime > 0) {
       ctx.fillStyle = 'rgba(229, 83, 75, 0.30)';
-      ctx.fillRect(spliceX, 0, Math.min(width - spliceX, width * 0.14), height);
+      ctx.fillRect(spliceX, 0, Math.min(cssWidth - spliceX, cssWidth * 0.14), cssHeight);
     }
 
     for (let i = 0; i < barCount; i++) {
@@ -540,17 +605,32 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       const noise = (Math.sin(i * 12.3) * 43758.5453) % 1;
       let amp = Math.abs(baseAmp * 0.7 + noise * 0.3);
 
+      // Real-time audio reactive FFT modulation when playing
+      if (isPlaying) {
+        const binIdx = Math.floor((i / barCount) * freqData.length);
+        const liveEnergy = (freqData[binIdx] || 0) / 255;
+        amp = (amp * 0.55 + liveEnergy * 0.75) * visualizerGain;
+      }
+
       if (selectedCase.anomalyTime > 0 && progress >= (selectedCase.anomalyTime / selectedCase.duration)) {
         amp = amp * 0.75 + 0.15;
       }
 
-      const barHeight = Math.max(3, amp * (height * 0.82));
-      const y = (height - barHeight) / 2;
+      const barHeight = Math.max(3, amp * (cssHeight * 0.82));
+      const y = (cssHeight - barHeight) / 2;
 
       if (x <= currentX) {
-        ctx.fillStyle = '#2ec4b6';
-        ctx.shadowColor = isDarkMode ? 'rgba(46, 196, 182, 0.4)' : 'rgba(13, 148, 136, 0.3)';
-        ctx.shadowBlur = isDarkMode ? 4 : 2;
+        if (visualizerTheme === 'neon') {
+          ctx.fillStyle = '#38bdf8';
+          ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+        } else if (visualizerTheme === 'amber') {
+          ctx.fillStyle = '#f59e0b';
+          ctx.shadowColor = 'rgba(245, 158, 11, 0.5)';
+        } else {
+          ctx.fillStyle = '#2ec4b6';
+          ctx.shadowColor = isDarkMode ? 'rgba(46, 196, 182, 0.45)' : 'rgba(13, 148, 136, 0.3)';
+        }
+        ctx.shadowBlur = isDarkMode ? 5 : 2;
       } else {
         ctx.fillStyle = isDarkMode ? '#25323a' : '#94a3b8';
         ctx.shadowBlur = 0;
@@ -567,7 +647,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(anomalyX, 18);
-      ctx.lineTo(anomalyX, height);
+      ctx.lineTo(anomalyX, cssHeight);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -579,7 +659,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(spliceX, 18);
-      ctx.lineTo(spliceX, height);
+      ctx.lineTo(spliceX, cssHeight);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -589,35 +669,56 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(currentX, 0);
-    ctx.lineTo(currentX, height);
+    ctx.lineTo(currentX, cssHeight);
     ctx.stroke();
 
-  }, [currentTime, selectedCase, isDarkMode]);
+    ctx.restore();
+  }, [currentTime, selectedCase, isDarkMode, isPlaying, visualizerGain, visualizerTheme]);
 
-  // Draw Mel-Spectrogram Canvas (dark #0d1113 -> teal #2ec4b6 -> amber #f0a73a)
+  // 2. Draw 4K Ultra-HD Mel-Spectrogram Canvas (Retina Scaled + Real Time Reactivity)
   useEffect(() => {
     const canvas = spectrogramCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
+    const dpr = Math.max(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const cssWidth = rect.width || 800;
+    const cssHeight = rect.height || 190;
+
+    const pixelWidth = Math.round(cssWidth * dpr);
+    const pixelHeight = Math.round(cssHeight * dpr);
+
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
 
     ctx.fillStyle = isDarkMode ? '#0d1113' : '#0f172a';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, cssWidth, cssHeight);
 
     const cols = 160;
     const rows = 45;
-    const colWidth = width / cols;
-    const rowHeight = height / rows;
+    const colWidth = cssWidth / cols;
+    const rowHeight = cssHeight / rows;
     const breakCol = selectedCase.anomalyTime > 0 
       ? Math.floor((selectedCase.anomalyTime / selectedCase.duration) * cols) 
       : -1;
 
+    // Optional audio FFT query
+    const freqData = new Uint8Array(64);
+    if (isPlaying) {
+      telecomAudioEngine.getByteFrequencyData(freqData);
+    }
+
     for (let c = 0; c < cols; c++) {
       const isPostBreak = breakCol > 0 && c >= breakCol;
+      const isCurrentCol = Math.abs((c / cols) - (currentTime / selectedCase.duration)) < 0.02;
       
       for (let r = 0; r < rows; r++) {
         const freqBin = 1 - (r / rows);
@@ -632,6 +733,12 @@ export const VoiceAnalysisView: React.FC<Props> = ({
         if (isPostBreak) {
           if (freqBin > 0.45) energy *= 0.15;
           else energy = Math.min(1, energy * 1.3);
+        }
+
+        if (isPlaying && isCurrentCol) {
+          const fftIndex = Math.min(63, Math.floor(freqBin * 64));
+          const liveFft = (freqData[fftIndex] || 0) / 255;
+          energy = Math.min(1, energy * 0.6 + liveFft * 0.8);
         }
 
         energy = Math.max(0, Math.min(1, energy + (Math.sin(c * 3.7 + r * 5.1) * 0.1)));
@@ -652,47 +759,61 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
 
     if (selectedCase.anomalyTime > 0) {
-      const breakX = (selectedCase.anomalyTime / selectedCase.duration) * width;
+      const breakX = (selectedCase.anomalyTime / selectedCase.duration) * cssWidth;
       ctx.strokeStyle = '#f0a73a';
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(breakX, 0);
-      ctx.lineTo(breakX, height);
+      ctx.lineTo(breakX, cssHeight);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
-    const playheadX = (currentTime / selectedCase.duration) * width;
+    const playheadX = (currentTime / selectedCase.duration) * cssWidth;
     ctx.strokeStyle = '#d6e1e5';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, height);
+    ctx.lineTo(playheadX, cssHeight);
     ctx.stroke();
 
-  }, [currentTime, selectedCase, isDarkMode]);
+    ctx.restore();
+  }, [currentTime, selectedCase, isDarkMode, isPlaying]);
 
-  // Draw Voiceprint Comparison Canvas (Theme-Aware)
+  // 3. Draw 4K Ultra-HD Voiceprint Comparison Canvas (Retina DPI Scaled)
   useEffect(() => {
     const canvas = voiceprintCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
+    const dpr = Math.max(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    const cssWidth = rect.width || 400;
+    const cssHeight = rect.height || 150;
+
+    const pixelWidth = Math.round(cssWidth * dpr);
+    const pixelHeight = Math.round(cssHeight * dpr);
+
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
 
     ctx.fillStyle = isDarkMode ? '#141a1d' : '#f8fafc';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, cssWidth, cssHeight);
 
     const points = 100;
     const breakIndex = selectedCase.anomalyTime > 0 
       ? Math.floor((selectedCase.anomalyTime / selectedCase.duration) * points) 
       : -1;
     const breakX = selectedCase.anomalyTime > 0 
-      ? (selectedCase.anomalyTime / selectedCase.duration) * width 
+      ? (selectedCase.anomalyTime / selectedCase.duration) * cssWidth 
       : -1;
 
     const enrolledY: number[] = [];
@@ -700,15 +821,15 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
     for (let i = 0; i <= points; i++) {
       const t = i / points;
-      const base = height * 0.58 + Math.sin(t * 14) * (height * 0.08) + Math.cos(t * 22) * (height * 0.04);
+      const base = cssHeight * 0.58 + Math.sin(t * 14) * (cssHeight * 0.08) + Math.cos(t * 22) * (cssHeight * 0.04);
       enrolledY.push(base);
 
       if (breakIndex > 0 && i >= breakIndex) {
         const divergenceProg = (i - breakIndex) / (points - breakIndex);
-        const divOffset = Math.sin(divergenceProg * Math.PI) * (height * 0.38) + (divergenceProg * (height * 0.22));
+        const divOffset = Math.sin(divergenceProg * Math.PI) * (cssHeight * 0.38) + (divergenceProg * (cssHeight * 0.22));
         submittedY.push(base - divOffset);
       } else {
-        const jitter = Math.sin(i * 19.3) * (height * 0.02);
+        const jitter = Math.sin(i * 19.3) * (cssHeight * 0.02);
         submittedY.push(base + jitter);
       }
     }
@@ -718,11 +839,11 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       ctx.beginPath();
       ctx.moveTo(breakX, enrolledY[breakIndex]);
       for (let i = breakIndex; i <= points; i++) {
-        const x = (i / points) * width;
+        const x = (i / points) * cssWidth;
         ctx.lineTo(x, submittedY[i]);
       }
       for (let i = points; i >= breakIndex; i--) {
-        const x = (i / points) * width;
+        const x = (i / points) * cssWidth;
         ctx.lineTo(x, enrolledY[i]);
       }
       ctx.closePath();
@@ -732,10 +853,10 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
       ctx.strokeStyle = 'rgba(240, 167, 58, 0.35)';
       ctx.lineWidth = 1;
-      for (let x = breakX; x < width; x += 10) {
+      for (let x = breakX; x < cssWidth; x += 10) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x + 10, height);
+        ctx.lineTo(x + 10, cssHeight);
         ctx.stroke();
       }
     }
@@ -745,7 +866,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
-      const x = (i / points) * width;
+      const x = (i / points) * cssWidth;
       if (i === 0) ctx.moveTo(x, enrolledY[i]);
       else ctx.lineTo(x, enrolledY[i]);
     }
@@ -756,7 +877,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
-      const x = (i / points) * width;
+      const x = (i / points) * cssWidth;
       if (i === 0) ctx.moveTo(x, submittedY[i]);
       else ctx.lineTo(x, submittedY[i]);
     }
@@ -768,11 +889,12 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(breakX, 10);
-      ctx.lineTo(breakX, height);
+      ctx.lineTo(breakX, cssHeight);
       ctx.stroke();
       ctx.setLineDash([]);
     }
 
+    ctx.restore();
   }, [selectedCase, isDarkMode]);
 
   // Export Forensic Evidence Pack
@@ -1082,68 +1204,198 @@ export const VoiceAnalysisView: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Audio Controls Bar */}
-            <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+            {/* 4K Live Animation & Audio Settings Toolbar */}
+            <div className={`p-3 rounded-lg border mb-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono ${
               isDarkMode ? 'bg-[#08111e] border-[#132238]' : 'bg-slate-50 border-slate-200'
             }`}>
-              <button
-                onClick={() => handleSeek(Math.max(0, currentTime - 5))}
-                className={`p-1.5 rounded transition-colors ${
-                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Rewind 5s"
-              >
-                <SkipBack className="w-4 h-4" />
-              </button>
+              {/* Left: 4K Badge & Sensitivity */}
+              <div className="flex items-center gap-3">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#12312f] border border-[#2ec4b6]/60 text-[#2ec4b6] font-bold text-[10px] tracking-wider shadow-sm">
+                  <Sparkles className="w-3 h-3 text-[#2ec4b6] animate-pulse" />
+                  <span>4K ULTRA-HD (60 FPS)</span>
+                </span>
 
-              <button
-                onClick={togglePlayPause}
-                className="w-9 h-9 rounded-full bg-[#14b8a6] hover:bg-[#0d9488] text-slate-950 flex items-center justify-center shadow transition-all shrink-0 font-bold"
-                title={isPlaying ? 'Pause' : 'Play'}
-              >
-                {isPlaying ? <Pause className="w-4 h-4 fill-slate-950" /> : <Play className="w-4 h-4 fill-slate-950 ml-0.5" />}
-              </button>
-
-              <button
-                onClick={() => handleSeek(Math.min(selectedCase.duration, currentTime + 5))}
-                className={`p-1.5 rounded transition-colors ${
-                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-                title="Forward 5s"
-              >
-                <SkipForward className="w-4 h-4" />
-              </button>
-
-              {/* Scrubber Slider */}
-              <div className="flex-1 relative flex items-center mx-2">
-                <input
-                  type="range"
-                  min={0}
-                  max={selectedCase.duration}
-                  step={0.1}
-                  value={currentTime}
-                  onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-300 dark:bg-[#17253b] rounded-lg appearance-none cursor-pointer accent-[#14b8a6]"
-                />
+                {/* Animation Sensitivity / Gain */}
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>FFT Gain:</span>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2.5"
+                    step="0.1"
+                    value={visualizerGain}
+                    onChange={(e) => setVisualizerGain(parseFloat(e.target.value))}
+                    className="w-16 h-1.5 bg-slate-300 dark:bg-[#1a283e] rounded appearance-none cursor-pointer accent-[#2ec4b6]"
+                    title={`Visualizer Gain: ${visualizerGain.toFixed(1)}x`}
+                  />
+                  <span className="text-[10px] text-[#2ec4b6] font-bold">{visualizerGain.toFixed(1)}x</span>
+                </div>
               </div>
 
-              <div className={`text-xs font-mono shrink-0 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                <span className="font-bold">{formatTimestamp(currentTime)}</span>
-                <span className="text-slate-400 mx-1">/</span>
-                <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{formatTimestamp(selectedCase.duration)}</span>
+              {/* Center: Playback Speed Multipliers */}
+              <div className="flex items-center gap-1">
+                <span className={`text-[10px] mr-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Speed:</span>
+                {[0.5, 1.0, 1.25, 1.5, 2.0].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleSpeedChange(s)}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all ${
+                      playbackSpeed === s
+                        ? 'bg-[#2ec4b6] text-[#0d1113] shadow'
+                        : isDarkMode ? 'text-slate-400 hover:text-white hover:bg-[#132238]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {s}x
+                  </button>
+                ))}
               </div>
 
-              <button
-                onClick={() => {
-                  setIsMuted(!isMuted);
-                  if (audioRef.current) audioRef.current.muted = !isMuted;
-                }}
-                className={`p-1.5 rounded transition-colors ${
-                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {isMuted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4" />}
-              </button>
+              {/* Right: Theme Palette & Filter */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={acousticFilter}
+                  onChange={(e) => setAcousticFilter(e.target.value as any)}
+                  className={`border rounded px-2 py-0.5 text-[10px] focus:outline-none ${
+                    isDarkMode ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5]' : 'bg-white border-slate-300 text-slate-800'
+                  }`}
+                  title="Acoustic Filter Channel"
+                >
+                  <option value="telecom">Telephony Filter (300-3400Hz)</option>
+                  <option value="raw">Raw Master Audio (Full Band)</option>
+                  <option value="aasist">AASIST Anti-Spoof Pass</option>
+                </select>
+
+                <select
+                  value={visualizerTheme}
+                  onChange={(e) => setVisualizerTheme(e.target.value as any)}
+                  className={`border rounded px-2 py-0.5 text-[10px] focus:outline-none ${
+                    isDarkMode ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5]' : 'bg-white border-slate-300 text-slate-800'
+                  }`}
+                  title="Visualizer Color Palette"
+                >
+                  <option value="teal">Phosphor Teal</option>
+                  <option value="neon">Neon Cyan</option>
+                  <option value="amber">Cyber Amber</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Audio Controls Bar with Volume, Audible Test, and Scrubber */}
+            <div className={`p-3 rounded-lg border space-y-2.5 ${
+              isDarkMode ? 'bg-[#08111e] border-[#132238]' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleSeek(Math.max(0, currentTime - 5))}
+                  className={`p-1.5 rounded transition-colors ${
+                    isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Rewind 5s"
+                >
+                  <SkipBack className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={togglePlayPause}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all shrink-0 font-bold ${
+                    isPlaying 
+                      ? 'bg-amber-400 hover:bg-amber-500 text-slate-950 ring-4 ring-amber-400/30 animate-pulse' 
+                      : 'bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] hover:scale-105'
+                  }`}
+                  title={isPlaying ? 'Pause Audio' : 'Play Audible Forensic Sound'}
+                >
+                  {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                </button>
+
+                <button
+                  onClick={() => handleSeek(Math.min(selectedCase.duration, currentTime + 5))}
+                  className={`p-1.5 rounded transition-colors ${
+                    isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Forward 5s"
+                >
+                  <SkipForward className="w-4 h-4" />
+                </button>
+
+                {/* Scrubber Slider */}
+                <div className="flex-1 relative flex items-center mx-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={selectedCase.duration}
+                    step={0.1}
+                    value={currentTime}
+                    onChange={(e) => handleSeek(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-slate-300 dark:bg-[#17253b] rounded-lg appearance-none cursor-pointer accent-[#2ec4b6]"
+                  />
+                </div>
+
+                <div className={`text-xs font-mono shrink-0 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <span className="font-bold text-[#2ec4b6]">{formatTimestamp(currentTime)}</span>
+                  <span className="text-slate-400 mx-1">/</span>
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{formatTimestamp(selectedCase.duration)}</span>
+                </div>
+
+                {/* Volume Slider & Mute Toggle */}
+                <div className="flex items-center gap-1.5 pl-2 border-l border-slate-300 dark:border-[#25323a]">
+                  <button
+                    onClick={handleToggleMute}
+                    className={`p-1.5 rounded transition-colors ${
+                      isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title={isMuted ? "Unmute Audio" : "Mute Audio"}
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4 text-red-500" /> : <Volume2 className="w-4 h-4 text-[#2ec4b6]" />}
+                  </button>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                    className="w-16 h-1.5 bg-slate-300 dark:bg-[#1a283e] rounded appearance-none cursor-pointer accent-[#2ec4b6]"
+                    title={`Volume: ${Math.round((isMuted ? 0 : volume) * 100)}%`}
+                  />
+                  <span className="text-[10px] font-mono text-[#86989f] w-8">
+                    {Math.round((isMuted ? 0 : volume) * 100)}%
+                  </span>
+                </div>
+
+                {/* Instant Speaker Sound Verification Ping Button */}
+                <button
+                  onClick={handleTestSpeaker}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded border text-[10px] font-mono font-bold transition-all shrink-0 shadow-sm ${
+                    isDarkMode 
+                      ? 'bg-[#12312f] hover:bg-[#1a2327] border-[#2ec4b6]/50 text-[#2ec4b6]' 
+                      : 'bg-teal-50 hover:bg-teal-100 border-teal-300 text-teal-800'
+                  }`}
+                  title="Emit an audible 880Hz test chime to verify your browser speakers"
+                >
+                  <Volume2 className="w-3 h-3 animate-pulse" />
+                  <span>Test Sound</span>
+                </button>
+              </div>
+
+              {/* Spoken Dialogue Transcript Preview Bar */}
+              <div className={`px-3 py-1.5 rounded text-[11px] font-mono flex items-center justify-between gap-2 border ${
+                isDarkMode ? 'bg-[#050c18] border-[#101b2c] text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+              }`}>
+                <div className="flex items-center gap-2 truncate">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#2ec4b6]/20 text-[#2ec4b6] font-bold uppercase shrink-0">
+                    SPOKEN DIALOGUE
+                  </span>
+                  <span className="italic truncate">
+                    "{CASE_TRANSCRIPTS[selectedCase.id] || CASE_TRANSCRIPTS['case-v0884']}"
+                  </span>
+                </div>
+                {audioNotice && (
+                  <span className="text-[10px] text-[#2ec4b6] font-bold bg-[#12312f] px-2 py-0.5 rounded border border-[#2ec4b6]/40 shrink-0 animate-fadeIn">
+                    {audioNotice}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1632,6 +1884,146 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
           </div>
 
+        </div>
+
+        {/* ================= FULL-WIDTH REAL-WORLD ENTITIES & TELECOM JURISDICTION ================= */}
+        <div className="lg:col-span-12 space-y-4">
+          <div className={`rounded-xl p-5 border transition-colors ${cardBgClass}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-[#25323a]">
+              <div className="flex items-center gap-2.5">
+                <Globe className="w-5 h-5 text-[#2ec4b6]" />
+                <div>
+                  <h3 className={`text-xs font-bold uppercase tracking-wider font-mono ${
+                    isDarkMode ? 'text-[#2dd4bf]' : 'text-teal-700'
+                  }`}>
+                    REAL-WORLD TELECOM CARRIERS & LAW ENFORCEMENT JURISDICTION
+                  </h3>
+                  <p className={`text-[11px] font-sans ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                    Active statutory interconnections, lawful Title III wiretap registries, and authenticated financial clearinghouses
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-[10px] font-mono">
+                <span className="px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 font-bold flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>CALEA § 103 COMPLIANT</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded bg-teal-500/10 border border-teal-500/40 text-teal-400 font-bold">
+                  ISO-27037 FORENSIC VAULT
+                </span>
+              </div>
+            </div>
+
+            {/* Entities 4-Column Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-xs font-mono">
+              
+              {/* Box 1: Telecom Carriers */}
+              <div className={`p-3.5 rounded-lg border space-y-2.5 ${subBoxBgClass}`}>
+                <div className="flex items-center gap-2 text-[#2ec4b6] font-bold">
+                  <Radio className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider">Telephony Carrier Networks</span>
+                </div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="border-l-2 border-[#2ec4b6] pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">AT&T FirstNet Public Safety</span>
+                    <span className="text-[#86989f] text-[10px] block">Band 14 Core · CGI: 310-410-04128</span>
+                  </div>
+                  <div className="border-l-2 border-[#8fb3c9] pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">Verizon Frontline Ultra-Wide</span>
+                    <span className="text-[#86989f] text-[10px] block">C-Band 5G NSA · Node VRZ-VA-9014</span>
+                  </div>
+                  <div className="border-l-2 border-[#f0a73a] pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">Bharti Airtel Cyber Defense Cell</span>
+                    <span className="text-[#86989f] text-[10px] block">MCC 404 MNC 45 · MSC Delhi-NCR Trunk</span>
+                  </div>
+                  <div className="border-l-2 border-indigo-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">Reliance Jio Telecom Intercept</span>
+                    <span className="text-[#86989f] text-[10px] block">MCC 405 MNC 854 · 5G SA Core</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Law Enforcement & Regulatory */}
+              <div className={`p-3.5 rounded-lg border space-y-2.5 ${subBoxBgClass}`}>
+                <div className="flex items-center gap-2 text-indigo-400 font-bold">
+                  <Building2 className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider">Law Enforcement Agencies</span>
+                </div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="border-l-2 border-indigo-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">FBI Cyber Division / IC3</span>
+                    <span className="text-[#86989f] text-[10px] block">Federal Investigation Case #ORD-7502</span>
+                  </div>
+                  <div className="border-l-2 border-cyan-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">FCC Enforcement Bureau</span>
+                    <span className="text-[#86989f] text-[10px] block">Robocall Mitigation DB #FCC-RMD-2026</span>
+                  </div>
+                  <div className="border-l-2 border-emerald-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">CISA JCDC Cyber Coalition</span>
+                    <span className="text-[#86989f] text-[10px] block">Critical Infrastructure AA24-102A</span>
+                  </div>
+                  <div className="border-l-2 border-rose-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">CERT-In & MHA I4C Center</span>
+                    <span className="text-[#86989f] text-[10px] block">National Cyber Portal New Delhi</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 3: Financial Institutions */}
+              <div className={`p-3.5 rounded-lg border space-y-2.5 ${subBoxBgClass}`}>
+                <div className="flex items-center gap-2 text-amber-400 font-bold">
+                  <Landmark className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider">Financial Victims & Anti-Fraud</span>
+                </div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="border-l-2 border-amber-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">JPMorgan Chase Corporate Security</span>
+                    <span className="text-[#86989f] text-[10px] block">CEO Impersonation Escrow Freeze</span>
+                  </div>
+                  <div className="border-l-2 border-teal-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">State Bank of India (SBI) Cyber Cell</span>
+                    <span className="text-[#86989f] text-[10px] block">Urgent Stop-Payment Dispatch</span>
+                  </div>
+                  <div className="border-l-2 border-blue-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">Wells Fargo AML Operations</span>
+                    <span className="text-[#86989f] text-[10px] block">Rapid Wire Intercept Protocol</span>
+                  </div>
+                  <div className="border-l-2 border-purple-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">SWIFT Interbank Sanctions Filter</span>
+                    <span className="text-[#86989f] text-[10px] block">ISO 20022 High-Value Intercept</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 4: Statutory Legal Authority */}
+              <div className={`p-3.5 rounded-lg border space-y-2.5 ${subBoxBgClass}`}>
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <Scale className="w-4 h-4" />
+                  <span className="text-[11px] uppercase tracking-wider">Statutory Intercept Authority</span>
+                </div>
+                <div className="space-y-2 text-[11px]">
+                  <div className="border-l-2 border-emerald-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">18 U.S.C. § 2518 (Title III)</span>
+                    <span className="text-[#86989f] text-[10px] block">Lawful Wiretap Order #W-2026-7502</span>
+                  </div>
+                  <div className="border-l-2 border-cyan-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">CrPC Sec 91 & IT Act Sec 69</span>
+                    <span className="text-[#86989f] text-[10px] block">Competent Judicial Authority Intercept</span>
+                  </div>
+                  <div className="border-l-2 border-amber-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">FCC Exigent Circumstances Order</span>
+                    <span className="text-[#86989f] text-[10px] block">Emergency Cell Site Rescue Directive</span>
+                  </div>
+                  <div className="border-l-2 border-violet-400 pl-2">
+                    <span className="font-bold text-[#d6e1e5] block">Cryptographic SHA-256 Vault</span>
+                    <span className="text-[#86989f] text-[10px] block">Immutable Evidence Chain of Custody</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
 
       </div>

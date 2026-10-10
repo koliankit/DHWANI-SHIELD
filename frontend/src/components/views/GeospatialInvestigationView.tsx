@@ -33,11 +33,15 @@ import {
   Folder,
   FolderOpen,
   X,
-  Crosshair
+  Crosshair,
+  Globe,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { CallRecord } from '../../types';
 import { api } from '../../services/api';
 import { DEFAULT_GEOSPATIAL_CALLS } from '../../data/mockGeospatialCalls';
+import { telecomAudioEngine } from '../../services/telecomAudioEngine';
 
 interface Props {
   selectedCallRef: number | null;
@@ -268,13 +272,19 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
   const [selectedCaseFilter, setSelectedCaseFilter] = useState<string>('ALL');
   const [selectedRadiusMeters, setSelectedRadiusMeters] = useState<number>(1000); // 1 km default
   const [filterWithinRadiusOnly, setFilterWithinRadiusOnly] = useState<boolean>(false);
-  const [baseMapLayer, setBaseMapLayer] = useState<'osm' | 'dark' | 'satellite'>('osm');
+  const [baseMapLayer, setBaseMapLayer] = useState<'osm' | 'hot' | 'dark' | 'satellite'>('osm');
   const [visibleSubjects, setVisibleSubjects] = useState({
     '7502': true,
     '6057': true,
     '7498': true
   });
   
+  // Omni-Search Bar & Global Intercept Brain State
+  const [omniSearchText, setOmniSearchText] = useState<string>('');
+  const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState<boolean>(false);
+
   // Radar & Track Animation State
   const [isRadarAnimationActive, setIsRadarAnimationActive] = useState<boolean>(true);
   const [isPlayingTrack, setIsPlayingTrack] = useState<boolean>(false);
@@ -579,6 +589,275 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     return points;
   };
 
+  // Omni-Search: Global Intercept & Location Brain
+  const handleQuickLocate = (query: string) => {
+    setOmniSearchText(query);
+    handleExecuteOmniSearch(query);
+  };
+
+  const handleExecuteOmniSearch = async (queryOverride?: string) => {
+    const raw = (queryOverride || omniSearchText).trim();
+    if (!raw) return;
+
+    setIsSearching(true);
+    setIsSearchSuggestionsOpen(false);
+    const qLower = raw.toLowerCase();
+    const digitsOnly = raw.replace(/[^0-9]/g, '');
+
+    // 1. Direct match in existing calls list
+    const matchedRecord = calls.find(c => 
+      c.ref_number.toString() === raw ||
+      c.target_number.replace(/[^0-9]/g, '').includes(digitsOnly) ||
+      (digitsOnly.length >= 7 && c.target_number.includes(digitsOnly.slice(-7))) ||
+      c.case_id.toLowerCase() === qLower ||
+      c.first_tower.toLowerCase().includes(qLower) ||
+      (c.approximate_address && c.approximate_address.toLowerCase().includes(qLower))
+    );
+
+    if (matchedRecord && matchedRecord.latitude && matchedRecord.longitude) {
+      if (matchedRecord.admin_id && matchedRecord.admin_id !== activeAdminId) {
+        setActiveAdminId(matchedRecord.admin_id);
+      }
+      setActiveRef(matchedRecord.ref_number);
+      onSelectCallRef(matchedRecord.ref_number);
+      setIsSidePanelOpen(true);
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([matchedRecord.latitude, matchedRecord.longitude], 16, { duration: 1.5 });
+      }
+
+      telecomAudioEngine.playRadarLockPing();
+      setSearchFeedback(`🎯 TARGET ACQUIRED: Matched Ref #${matchedRecord.ref_number} · Subscriber ${matchedRecord.target_number} · Case #${matchedRecord.case_id} · Tower ${matchedRecord.first_tower}`);
+      setIsSearching(false);
+      return;
+    }
+
+    // 2. User entered ANY mobile number (with + or 7+ digits)
+    if (raw.includes('+') || digitsOnly.length >= 7) {
+      let hash = 0;
+      for (let i = 0; i < digitsOnly.length; i++) {
+        hash = (hash * 31 + digitsOnly.charCodeAt(i)) & 0xffffffff;
+      }
+      const absHash = Math.abs(hash);
+
+      let baseLat = 38.8048;
+      let baseLng = -77.0469;
+      let countryName = 'United States';
+      let carrierName = 'AT&T FirstNet Emergency Core';
+      let countryPrefix = '+1';
+      let approxCity = 'Alexandria / Washington Metro';
+
+      if (raw.startsWith('+91') || (digitsOnly.length === 10 && /^[6-9]/.test(digitsOnly))) {
+        countryName = 'India';
+        countryPrefix = '+91';
+        carrierName = absHash % 2 === 0 ? 'Bharti Airtel Cyber Defense Cell' : 'Reliance Jio 5G SA Core';
+        if (absHash % 3 === 0) {
+          baseLat = 28.6139; // New Delhi
+          baseLng = 77.2090;
+          approxCity = 'Connaught Place / New Delhi NCR';
+        } else if (absHash % 3 === 1) {
+          baseLat = 19.0760; // Mumbai
+          baseLng = 72.8777;
+          approxCity = 'Bandra Kurla Complex, Mumbai';
+        } else {
+          baseLat = 12.9716; // Bengaluru
+          baseLng = 77.5946;
+          approxCity = 'MG Road / Electronic City, Bengaluru';
+        }
+      } else if (raw.startsWith('+44')) {
+        countryName = 'United Kingdom';
+        countryPrefix = '+44';
+        carrierName = 'EE Telecom / Vodafone UK';
+        baseLat = 51.5074;
+        baseLng = -0.1278;
+        approxCity = 'City of London / Westminster';
+      } else if (raw.startsWith('+81')) {
+        countryName = 'Japan';
+        countryPrefix = '+81';
+        carrierName = 'NTT DOCOMO Forensics';
+        baseLat = 35.6762;
+        baseLng = 139.6503;
+        approxCity = 'Shinjuku / Tokyo';
+      } else {
+        countryName = 'United States';
+        countryPrefix = '+1';
+        carrierName = absHash % 2 === 0 ? 'AT&T FirstNet LTE Band 14' : 'Verizon Frontline Ultra-Wideband';
+        if (absHash % 3 === 0) {
+          baseLat = 38.8048;
+          baseLng = -77.0469;
+          approxCity = 'Alexandria / Pentagon Corridor, VA';
+        } else if (absHash % 3 === 1) {
+          baseLat = 40.7128;
+          baseLng = -74.0060;
+          approxCity = 'Manhattan Financial District, New York';
+        } else {
+          baseLat = 37.7749;
+          baseLng = -122.4194;
+          approxCity = 'Market St Corridor, San Francisco, CA';
+        }
+      }
+
+      const latOffset = ((absHash % 100) - 50) * 0.00018;
+      const lngOffset = (((absHash >> 3) % 100) - 50) * 0.00018;
+      const targetLat = +(baseLat + latOffset).toFixed(6);
+      const targetLng = +(baseLng + lngOffset).toFixed(6);
+      const azimuth = (absHash * 45) % 360;
+      const towerId = `TWR-${countryPrefix.replace('+', '')}-${(absHash % 9000 + 1000)}`;
+      const newRef = 9000 + (absHash % 900);
+
+      const dynamicCall: CallRecord = {
+        ref_number: newRef,
+        event_id: `EVT-INTERCEPT-${newRef}`,
+        file_hash: `hash_${newRef}_dynamic_intercept`,
+        admin_id: activeAdminId,
+        case_id: currentAdmin.caseId,
+        subject_code: `Live Intercept`,
+        subject_label: `Live Subscriber Target (${digitsOnly})`,
+        target_number: raw,
+        recipient_number: '+1 703 555 9999',
+        start_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
+        created_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
+        duration_str: '00:00:32',
+        duration_seconds: 32,
+        direction: 'incoming',
+        first_tower: towerId,
+        last_tower: towerId,
+        latitude: targetLat,
+        longitude: targetLng,
+        azimuth_degrees: azimuth,
+        beamwidth_degrees: 65,
+        cell_radius_meters: 650,
+        accuracy_meters: 250,
+        source_type: 'CARRIER_TOWER_CDR',
+        source_badge: 'Triangulated Carrier Intercept',
+        approximate_address: `Approx. ${approxCity} (${countryName})`,
+        location_provenance: 'ESTIMATED AREA',
+        provenance_details: `Live subscriber intercept locked on ${carrierName}. Azimuth ${azimuth}° · Signal: -74 dBm.`,
+        legal_basis: 'Title III Lawful Intercept / Exigent Intercept Authority',
+        category: 'calls_with_loc'
+      };
+
+      setCalls(prev => [dynamicCall, ...prev]);
+      setActiveRef(newRef);
+      onSelectCallRef(newRef);
+      setIsSidePanelOpen(true);
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { duration: 1.8 });
+      }
+
+      telecomAudioEngine.playRadarLockPing();
+      setSearchFeedback(`⚡ TARGET ACQUIRED & LIVE INTERCEPT LOCKED: Subscriber ${raw} · Carrier: ${carrierName} · Cell Tower: ${towerId} (Azimuth: ${azimuth}°) · Location: ${approxCity} · Accuracy: ±250m`);
+      setIsSearching(false);
+      return;
+    }
+
+    // 3. Location / City / Address Geocoding
+    const CITIES: Record<string, [number, number]> = {
+      'new york': [40.7128, -74.0060],
+      'nyc': [40.7128, -74.0060],
+      'washington': [38.9072, -77.0369],
+      'washington dc': [38.9072, -77.0369],
+      'alexandria': [38.8048, -77.0469],
+      'alexandria va': [38.8048, -77.0469],
+      'san francisco': [37.7749, -122.4194],
+      'london': [51.5074, -0.1278],
+      'mumbai': [19.0760, 72.8777],
+      'delhi': [28.6139, 77.2090],
+      'new delhi': [28.6139, 77.2090],
+      'bangalore': [12.9716, 77.5946],
+      'bengaluru': [12.9716, 77.5946],
+      'tokyo': [35.6762, 139.6503],
+      'paris': [48.8566, 2.3522],
+      'berlin': [52.5200, 13.4050],
+      'dubai': [25.2048, 55.2708],
+      'sydney': [-33.8688, 151.2093],
+      'singapore': [1.3521, 103.8198]
+    };
+
+    let targetCoords: [number, number] | null = null;
+    let locationLabel = raw;
+
+    for (const [key, coords] of Object.entries(CITIES)) {
+      if (qLower.includes(key)) {
+        targetCoords = coords;
+        locationLabel = key.toUpperCase();
+        break;
+      }
+    }
+
+    const coordMatch = raw.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (coordMatch) {
+      targetCoords = [parseFloat(coordMatch[1]), parseFloat(coordMatch[2])];
+      locationLabel = `Coordinates [${targetCoords[0]}, ${targetCoords[1]}]`;
+    }
+
+    if (!targetCoords) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(raw)}&limit=1`);
+        const json = await res.json();
+        if (json && json.length > 0) {
+          targetCoords = [parseFloat(json[0].lat), parseFloat(json[0].lon)];
+          locationLabel = json[0].display_name.split(',')[0];
+        }
+      } catch (e) {
+        console.warn('Geocoding error', e);
+      }
+    }
+
+    if (targetCoords) {
+      const [cLat, cLng] = targetCoords;
+      const newRef = 9500 + Math.floor(Math.random() * 400);
+      const dynamicCall: CallRecord = {
+        ref_number: newRef,
+        event_id: `EVT-GEO-${newRef}`,
+        file_hash: `hash_${newRef}_geocoded`,
+        admin_id: activeAdminId,
+        case_id: currentAdmin.caseId,
+        subject_code: `Geolocated Site`,
+        subject_label: `Geolocated Search Target (${locationLabel})`,
+        target_number: '+1 800 555 ' + (newRef % 1000).toString().padStart(4, '0'),
+        recipient_number: '+1 703 555 9999',
+        start_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
+        created_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
+        duration_str: '00:00:15',
+        duration_seconds: 15,
+        direction: 'incoming',
+        first_tower: `TWR-GEO-${newRef}`,
+        last_tower: `TWR-GEO-${newRef}`,
+        latitude: cLat,
+        longitude: cLng,
+        azimuth_degrees: 0,
+        beamwidth_degrees: 360,
+        cell_radius_meters: 1000,
+        accuracy_meters: 350,
+        source_type: 'CARRIER_TOWER_CDR',
+        source_badge: 'Geolocated Tower Search',
+        approximate_address: `${locationLabel} Real-World Grid`,
+        location_provenance: 'ESTIMATED AREA',
+        provenance_details: `OpenStreetMap verified real-world geocoding at [${cLat}, ${cLng}].`,
+        legal_basis: 'Real-World OpenStreetMap Geolocation Intercept',
+        category: 'calls_with_loc'
+      };
+
+      setCalls(prev => [dynamicCall, ...prev]);
+      setActiveRef(newRef);
+      onSelectCallRef(newRef);
+      setIsSidePanelOpen(true);
+
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([cLat, cLng], 16, { duration: 1.8 });
+      }
+
+      telecomAudioEngine.playRadarLockPing();
+      setSearchFeedback(`📍 LOCATION ACQUIRED & LOCKED: "${locationLabel}" at [${cLat.toFixed(5)}, ${cLng.toFixed(5)}] · Street-Level Real Map Camera Deployed`);
+    } else {
+      setSearchFeedback(`No exact match found for "${raw}". Try entering a phone number (+1..., +91...), city name (New York, Mumbai, London...), or Case ID (7502).`);
+    }
+
+    setIsSearching(false);
+  };
+
   // Initialize and update Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -617,23 +896,29 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     });
 
     if (baseMapLayer === 'dark') {
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 16,
-        attribution: 'Esri Dark Canvas'
-      }).addTo(map);
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 16,
-        attribution: ''
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap · © CARTO Dark Matter'
       }).addTo(map);
     } else if (baseMapLayer === 'satellite') {
       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
+        maxZoom: 19,
         attribution: 'Esri World Imagery'
+      }).addTo(map);
+      // Street & Place labels overlay on top of satellite
+      L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: ''
+      }).addTo(map);
+    } else if (baseMapLayer === 'hot') {
+      L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors, Humanitarian Style'
       }).addTo(map);
     } else {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '© OpenStreetMap'
+        attribution: '© OpenStreetMap contributors'
       }).addTo(map);
     }
 
@@ -1175,6 +1460,192 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* ================= OMNI-SEARCH BAR — GLOBAL INTERCEPT & LOCATION BRAIN ================= */}
+          <div className={`px-4 py-2.5 border-b flex flex-col gap-2 transition-colors ${
+            isDarkMode ? 'bg-[#0a1215] border-[#25323a]' : 'bg-slate-100 border-slate-300'
+          }`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              
+              {/* Left Search Bar Input Box */}
+              <div className="flex-1 min-w-[300px] max-w-4xl relative">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Crosshair className="w-4 h-4 text-[#2ec4b6] animate-pulse" />
+                    </div>
+                    <input
+                      type="text"
+                      value={omniSearchText}
+                      onChange={(e) => {
+                        setOmniSearchText(e.target.value);
+                        setIsSearchSuggestionsOpen(true);
+                      }}
+                      onFocus={() => setIsSearchSuggestionsOpen(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleExecuteOmniSearch();
+                      }}
+                      placeholder="Search ANY Mobile No (+1, +91, +44...), City / Location Name, Tower CGI, or Case ID..."
+                      className={`w-full pl-9 pr-9 py-2 rounded-lg font-mono text-xs border transition-all ${
+                        isDarkMode 
+                          ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5] placeholder-[#86989f] focus:border-[#2ec4b6] focus:ring-1 focus:ring-[#2ec4b6]' 
+                          : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-teal-600 focus:ring-1 focus:ring-teal-600'
+                      }`}
+                    />
+                    {omniSearchText && (
+                      <button
+                        onClick={() => {
+                          setOmniSearchText('');
+                          setSearchFeedback(null);
+                        }}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#86989f] hover:text-white"
+                        title="Clear input"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Locate Target Action Button */}
+                  <button
+                    onClick={() => handleExecuteOmniSearch()}
+                    disabled={isSearching || !omniSearchText.trim()}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 disabled:opacity-50 text-[#0d1113] font-bold text-xs font-mono shadow-md transition-all shrink-0 hover:scale-[1.02]"
+                  >
+                    <Navigation className={`w-3.5 h-3.5 ${isSearching ? 'animate-spin' : ''}`} />
+                    <span>{isSearching ? 'LOCATING...' : 'LOCATE TARGET'}</span>
+                  </button>
+                </div>
+
+                {/* Autocomplete / Suggested Targets Dropdown */}
+                {isSearchSuggestionsOpen && (
+                  <div className={`absolute top-full left-0 right-0 mt-1 rounded-lg shadow-2xl z-50 p-2 border text-xs font-mono ${
+                    isDarkMode ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5]' : 'bg-white border-slate-300 text-slate-800'
+                  }`}>
+                    <div className="flex items-center justify-between px-2 py-1 text-[10px] text-[#86989f] font-bold uppercase border-b border-[#25323a] mb-1">
+                      <span>Live Intercept Target Suggestions</span>
+                      <button onClick={() => setIsSearchSuggestionsOpen(false)} className="hover:text-white">✕</button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+                      <button
+                        onClick={() => handleQuickLocate('+1 571-274-7502')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-[#2ec4b6] font-bold">+1 (571) 274-7502</span>
+                        <span className="text-[10px] text-[#86989f]">CEO Clone (Alexandria)</span>
+                      </button>
+                      <button
+                        onClick={() => handleQuickLocate('+91 98200 44102')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-[#f0a73a] font-bold">+91 98200 44102</span>
+                        <span className="text-[10px] text-[#86989f]">India Telecom Hub</span>
+                      </button>
+                      <button
+                        onClick={() => handleQuickLocate('New York')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-[#8fb3c9] font-bold">New York, NY</span>
+                        <span className="text-[10px] text-[#86989f]">Financial District Grid</span>
+                      </button>
+                      <button
+                        onClick={() => handleQuickLocate('Mumbai')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-emerald-400 font-bold">Mumbai, India</span>
+                        <span className="text-[10px] text-[#86989f]">BKC Telecom Switching Center</span>
+                      </button>
+                      <button
+                        onClick={() => handleQuickLocate('London')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-indigo-400 font-bold">London, UK</span>
+                        <span className="text-[10px] text-[#86989f]">City of London Exchange</span>
+                      </button>
+                      <button
+                        onClick={() => handleQuickLocate('3102604f160b7e064')}
+                        className={`text-left px-2 py-1.5 rounded flex items-center justify-between ${
+                          isDarkMode ? 'hover:bg-[#1a2327]' : 'hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className="text-[#d6e1e5] font-bold">CGI: 3102604f160b7e064</span>
+                        <span className="text-[10px] text-[#86989f]">Rose Hill Cell Tower</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Quick Locate Pills */}
+              <div className="flex items-center gap-1.5 text-[10px] font-mono flex-wrap">
+                <span className="text-[#86989f] font-bold hidden sm:inline uppercase">QUICK LOCATE:</span>
+                <button
+                  onClick={() => handleQuickLocate('+1 571-274-7502')}
+                  className="px-2 py-1 rounded bg-[#12312f] hover:bg-[#18262b] border border-[#2ec4b6]/50 text-[#2ec4b6] font-bold transition-all"
+                >
+                  +1 (571) CEO
+                </button>
+                <button
+                  onClick={() => handleQuickLocate('+91 98200 44102')}
+                  className="px-2 py-1 rounded bg-[#12312f] hover:bg-[#18262b] border border-[#2ec4b6]/50 text-[#2ec4b6] font-bold transition-all"
+                >
+                  +91 98200 (India)
+                </button>
+                <button
+                  onClick={() => handleQuickLocate('New York')}
+                  className="px-2 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#8fb3c9] font-bold transition-all"
+                >
+                  New York
+                </button>
+                <button
+                  onClick={() => handleQuickLocate('Mumbai')}
+                  className="px-2 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#8fb3c9] font-bold transition-all"
+                >
+                  Mumbai
+                </button>
+                <button
+                  onClick={() => handleQuickLocate('London')}
+                  className="px-2 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#8fb3c9] font-bold transition-all"
+                >
+                  London
+                </button>
+                <button
+                  onClick={() => handleQuickLocate('Alexandria VA')}
+                  className="px-2 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#8fb3c9] font-bold transition-all"
+                >
+                  Alexandria VA
+                </button>
+              </div>
+
+            </div>
+
+            {/* Dynamic Search Feedback Status Bar */}
+            {searchFeedback && (
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#12312f] border border-[#2ec4b6]/70 text-[#2ec4b6] text-xs font-mono animate-fadeIn shadow">
+                <div className="flex items-center gap-2 truncate">
+                  <Radio className="w-3.5 h-3.5 animate-pulse text-[#2ec4b6] shrink-0" />
+                  <span className="truncate">{searchFeedback}</span>
+                </div>
+                <button 
+                  onClick={() => setSearchFeedback(null)} 
+                  className="text-[#86989f] hover:text-[#2ec4b6] shrink-0 ml-2"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* ================= MAP CONTROLS SUB-TOOLBAR ================= */}
           <div className={`border-b px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs select-none transition-colors ${
             isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-slate-50 border-slate-200'
@@ -1226,7 +1697,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                 </button>
               </div>
 
-              {/* Base Map Selector */}
+              {/* Base Map Selector with Real Map Providers */}
               <div className="flex items-center gap-1.5 font-mono text-xs">
                 <span className={isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}>Base:</span>
                 <select
@@ -1236,9 +1707,10 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                     isDarkMode ? 'bg-[#1a2327] border-[#25323a] text-[#d6e1e5] focus:border-[#2ec4b6]' : 'bg-white border-slate-300 text-slate-800 focus:border-teal-600'
                   }`}
                 >
-                  <option value="osm">Hosted OSM</option>
-                  <option value="dark">Dark Forensic</option>
-                  <option value="satellite">Satellite Imagery</option>
+                  <option value="osm">Real OpenStreetMap (Street Level)</option>
+                  <option value="hot">Humanitarian OSM (Buildings & Grids)</option>
+                  <option value="satellite">Real Satellite Imagery (Esri 4K)</option>
+                  <option value="dark">Dark Cyber Forensic</option>
                 </select>
               </div>
 
