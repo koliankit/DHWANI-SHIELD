@@ -24,7 +24,8 @@ import {
   ShieldCheck, 
   Hash, 
   ExternalLink,
-  Link2 
+  Link2,
+  Navigation
 } from 'lucide-react';
 import { AnalysisResponse } from '../../types';
 import { api } from '../../services/api';
@@ -1716,58 +1717,119 @@ export const VoiceAnalysisView: React.FC<Props> = ({
                 Send this secure verification link to the complainant. When opened in their browser, they grant explicit consent to share device GPS coordinates, which will be reverse-geocoded via Nominatim into an approximate street address.
               </p>
 
-              <div className="p-3 rounded-xl bg-[#0d1113] border border-[#25323a] flex items-center justify-between gap-2">
-                <span className="text-[#2ec4b6] truncate text-[11px]">
-                  http://127.0.0.1:5173/?consent_token=cst_{selectedCase.eventId.toLowerCase()}&event_id={selectedCase.eventId}
-                </span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(`http://127.0.0.1:5173/?consent_token=cst_${selectedCase.eventId.toLowerCase()}&event_id=${selectedCase.eventId}`);
-                    alert('Consent URL copied to clipboard!');
-                  }}
-                  className="px-2.5 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] text-[#d6e1e5] border border-[#25323a] shrink-0 font-bold text-[10px]"
-                >
-                  Copy Link
-                </button>
-              </div>
+              {/* Dynamic Consent Link Box */}
+              {(() => {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5173';
+                const token = `cst_${selectedCase.eventId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+                const consentUrl = `${origin}/?consent_token=${token}&event_id=${selectedCase.eventId}`;
+                return (
+                  <div className="p-3 rounded-xl bg-[#0d1113] border border-[#25323a] flex items-center justify-between gap-2">
+                    <span className="text-[#2ec4b6] truncate text-[11px]" title={consentUrl}>
+                      {consentUrl}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(consentUrl);
+                        alert('Consent URL copied to clipboard!');
+                      }}
+                      className="px-2.5 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] text-[#d6e1e5] border border-[#25323a] shrink-0 font-bold text-[10px]"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                );
+              })()}
 
-              {/* Simulation button for immediate testing */}
-              <div className="p-3.5 rounded-xl bg-[#1a2327] border border-[#25323a] space-y-2">
-                <div className="text-[11px] font-bold text-[#d6e1e5]">Simulate Complainant Consent Flow:</div>
-                <p className="text-[10px] text-[#86989f]">
-                  Submits live coordinates (38.8895°N, -77.0352°W, ±8m) to backend Nominatim reverse-geocoder.
+              {/* Actions Section */}
+              <div className="p-3.5 rounded-xl bg-[#1a2327] border border-[#25323a] space-y-3">
+                <div className="text-[11px] font-bold text-[#d6e1e5]">Submit or Simulate Complainant GPS:</div>
+                <p className="text-[10px] text-[#86989f] leading-relaxed">
+                  You can capture live GPS from your current device via standard HTML5 Geolocation, or simulate verified coordinates for Washington, D.C.
                 </p>
-                <button
-                  onClick={async () => {
-                    setIsSimulatingConsentGps(true);
-                    try {
-                      const res = await api.submitConsentGPS(selectedCase.eventId, 38.8895, -77.0352, 8.0);
-                      const addr = res.location_record?.approximate_address || 'Approx. 1400 Constitution Ave NW, Washington, DC 20230, USA';
-                      setSelectedCase(prev => ({
-                        ...prev,
-                        locationSource: 'CONSENT_LINK_GPS',
-                        locationSourceBadge: 'Complainant GPS Consent Link',
-                        approximateAddress: addr,
-                        accuracyRadiusMeters: 8,
-                        linkedCallRef: 1395,
-                        cellTowerId: 'CONSENT_GPS',
-                        locationArea: addr,
-                        legalBasis: 'Complainant Informed Consent (HTML5 Geolocation API)'
-                      }));
-                      setIsConsentModalOpen(false);
-                      setExportNotification('Complainant GPS coordinates verified and reverse-geocoded successfully!');
-                    } catch (err: any) {
-                      alert(err.message || 'Failed to submit simulated consent');
-                    } finally {
-                      setIsSimulatingConsentGps(false);
-                    }
-                  }}
-                  disabled={isSimulatingConsentGps}
-                  className="w-full py-2 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-1.5 shadow"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#0d1113]" />
-                  <span>{isSimulatingConsentGps ? 'Geocoding GPS Coordinates...' : 'Simulate Complainant Sharing GPS'}</span>
-                </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  {/* Live HTML5 Geolocation */}
+                  <button
+                    onClick={() => {
+                      if (!navigator.geolocation) {
+                        alert('HTML5 Geolocation is not supported by your browser.');
+                        return;
+                      }
+                      setIsSimulatingConsentGps(true);
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          try {
+                            const lat = pos.coords.latitude;
+                            const lng = pos.coords.longitude;
+                            const acc = pos.coords.accuracy || 12;
+                            const res = await api.submitConsentGPS(selectedCase.eventId, lat, lng, acc);
+                            const addr = res.location_record?.approximate_address || `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°W`;
+                            setSelectedCase(prev => ({
+                              ...prev,
+                              locationSource: 'CONSENT_LINK_GPS',
+                              locationSourceBadge: 'Complainant GPS Consent Link',
+                              approximateAddress: addr,
+                              accuracyRadiusMeters: Math.round(acc),
+                              linkedCallRef: 1395,
+                              cellTowerId: 'CONSENT_GPS',
+                              locationArea: addr,
+                              legalBasis: 'Complainant Informed Consent (HTML5 Geolocation API)'
+                            }));
+                            setIsConsentModalOpen(false);
+                            setExportNotification('Live device GPS coordinates successfully captured and attached to case evidence!');
+                          } catch (err: any) {
+                            alert(err.message || 'Error processing coordinates');
+                          } finally {
+                            setIsSimulatingConsentGps(false);
+                          }
+                        },
+                        (geoErr) => {
+                          setIsSimulatingConsentGps(false);
+                          alert(`Browser Geolocation permission denied or unavailable: ${geoErr.message}`);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                      );
+                    }}
+                    disabled={isSimulatingConsentGps}
+                    className="py-2.5 px-3 rounded-lg bg-[#12312f] hover:bg-[#1a2327] border border-[#2ec4b6]/60 text-[#2ec4b6] font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                    <span>{isSimulatingConsentGps ? 'Locating Device...' : 'Use My Live Device GPS'}</span>
+                  </button>
+
+                  {/* Pre-calibrated Landmark Simulation */}
+                  <button
+                    onClick={async () => {
+                      setIsSimulatingConsentGps(true);
+                      try {
+                        const res = await api.submitConsentGPS(selectedCase.eventId, 38.8895, -77.0352, 8.0);
+                        const addr = res.location_record?.approximate_address || 'Approx. 1400 Constitution Ave NW, Washington, DC 20230, USA';
+                        setSelectedCase(prev => ({
+                          ...prev,
+                          locationSource: 'CONSENT_LINK_GPS',
+                          locationSourceBadge: 'Complainant GPS Consent Link',
+                          approximateAddress: addr,
+                          accuracyRadiusMeters: 8,
+                          linkedCallRef: 1395,
+                          cellTowerId: 'CONSENT_GPS',
+                          locationArea: addr,
+                          legalBasis: 'Complainant Informed Consent (HTML5 Geolocation API)'
+                        }));
+                        setIsConsentModalOpen(false);
+                        setExportNotification('Complainant GPS coordinates verified and reverse-geocoded successfully!');
+                      } catch (err: any) {
+                        alert(err.message || 'Failed to submit simulated consent');
+                      } finally {
+                        setIsSimulatingConsentGps(false);
+                      }
+                    }}
+                    disabled={isSimulatingConsentGps}
+                    className="py-2.5 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-1.5 shadow transition-all"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0d1113]" />
+                    <span>{isSimulatingConsentGps ? 'Geocoding GPS...' : 'Simulate Sharing GPS'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

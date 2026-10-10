@@ -10,6 +10,7 @@ import { SettingsView } from './components/views/SettingsView';
 import { ShareModal } from './components/ShareModal';
 import { ActiveNavTab, AnalysisResponse, SystemStatusResponse } from './types';
 import { api } from './services/api';
+import { MapPin } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Voice Analysis (Hero Dashboard: Reference Image 2) is active by default
@@ -27,6 +28,11 @@ export const App: React.FC = () => {
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [isConnected, setIsConnected] = useState(true);
   const [historyCount, setHistoryCount] = useState(0);
+
+  // Complainant GPS Consent Link URL Parameter Listener
+  const [incomingConsent, setIncomingConsent] = useState<{ token: string; eventId: string } | null>(null);
+  const [consentSubmissionStatus, setConsentSubmissionStatus] = useState<'idle' | 'locating' | 'success' | 'error'>('idle');
+  const [consentResultAddress, setConsentResultAddress] = useState<string | null>(null);
 
   // Theme Management (Day Mode vs Dark Mode)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -56,6 +62,18 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadSystemStatus();
     loadDefaultInitialAnalysis();
+
+    // Check for incoming complainant consent token in URL
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('consent_token');
+      const eventId = params.get('event_id');
+      if (token && eventId) {
+        setIncomingConsent({ token, eventId });
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const loadSystemStatus = async () => {
@@ -296,6 +314,105 @@ export const App: React.FC = () => {
         onClose={() => setIsShareModalOpen(false)}
         data={analysisData}
       />
+
+      {/* Incoming Complainant GPS Consent Authorization Dialog */}
+      {incomingConsent && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#141a1d] border border-[#2ec4b6]/60 rounded-2xl p-6 max-w-md w-full shadow-2xl text-center font-mono space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#12312f] border border-[#2ec4b6] text-[#2ec4b6] flex items-center justify-center mx-auto shadow-lg shadow-[#2ec4b6]/20">
+              <MapPin className="w-6 h-6 text-[#2ec4b6]" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[#d6e1e5]">Complainant Location Verification</h3>
+              <p className="text-xs text-[#86989f] mt-1 font-sans">
+                You received this request to verify your location for Event <strong>{incomingConsent.eventId}</strong>.
+              </p>
+            </div>
+            
+            {consentSubmissionStatus === 'idle' && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-[#86989f] leading-relaxed">
+                  By clicking "Authorize One-Time GPS", your browser will ask for device location permission. Your coordinates will be reverse-geocoded and securely attached to the case evidence.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setConsentSubmissionStatus('locating');
+                      if (!navigator.geolocation) {
+                        setConsentSubmissionStatus('error');
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          try {
+                            const res = await api.submitConsentGPS(incomingConsent.eventId, pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy || 10);
+                            setConsentResultAddress(res.location_record?.approximate_address || 'Verified Coordinates');
+                            setConsentSubmissionStatus('success');
+                          } catch (err) {
+                            setConsentSubmissionStatus('error');
+                          }
+                        },
+                        () => {
+                          setConsentSubmissionStatus('error');
+                        },
+                        { enableHighAccuracy: true, timeout: 10000 }
+                      );
+                    }}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs shadow transition-all"
+                  >
+                    Authorize One-Time GPS
+                  </button>
+                  <button
+                    onClick={() => setIncomingConsent(null)}
+                    className="py-2.5 px-4 rounded-xl bg-[#1a2327] hover:bg-[#25323a] text-[#86989f] font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {consentSubmissionStatus === 'locating' && (
+              <div className="py-4 text-[#2ec4b6] text-xs flex flex-col items-center gap-2">
+                <div className="animate-spin w-6 h-6 border-2 border-[#2ec4b6] border-t-transparent rounded-full"></div>
+                <span>Requesting Device Geolocation Permission...</span>
+              </div>
+            )}
+
+            {consentSubmissionStatus === 'success' && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-[#12312f] border border-[#2ec4b6]/60 text-[#2ec4b6] text-xs leading-relaxed">
+                  ✓ Coordinates Verified & Attached: <br/>
+                  <span className="text-[#d6e1e5] font-sans font-medium text-[11px] block mt-1">{consentResultAddress}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setIncomingConsent(null);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                  }}
+                  className="w-full py-2 px-4 rounded-xl bg-[#2ec4b6] text-[#0d1113] font-bold text-xs shadow"
+                >
+                  Continue to Application
+                </button>
+              </div>
+            )}
+
+            {consentSubmissionStatus === 'error' && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-lg bg-[#e5534b]/20 border border-[#e5534b]/60 text-[#e5534b] text-xs">
+                  Location authorization was denied or unavailable.
+                </div>
+                <button
+                  onClick={() => setIncomingConsent(null)}
+                  className="w-full py-2 px-4 rounded-xl bg-[#1a2327] text-[#d6e1e5] font-bold text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
