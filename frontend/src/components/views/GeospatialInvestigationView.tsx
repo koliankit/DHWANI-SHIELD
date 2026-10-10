@@ -240,13 +240,13 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       const isVisible = visibleSubjects[rec.case_id as keyof typeof visibleSubjects] ?? true;
       if (!isVisible) return;
 
-      // Color coding matching Reference Image 1 Subject Badges:
-      // Case 7502: Blue
-      // Case 6057: Purple
-      // Case 7498: Orange
-      let color = '#2563eb'; // blue
-      if (rec.case_id === '7498') color = '#ea580c'; // orange
-      if (rec.case_id === '6057') color = '#9333ea'; // purple
+      // Palette matching:
+      // Case 7502: Primary Teal #2ec4b6
+      // Case 6057: Sample #8fb3c9
+      // Case 7498: Amber #f0a73a
+      let color = '#2ec4b6';
+      if (rec.case_id === '7498') color = '#f0a73a';
+      if (rec.case_id === '6057') color = '#8fb3c9';
 
       // 1. Draw Sector Azimuth Wedge if available
       if (
@@ -320,23 +320,23 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       // Move map smoothly to selected record
       map.panTo([selectedRecord.latitude, selectedRecord.longitude]);
 
-      // Outer Radius Search Circle
+      // Outer Radius Search Circle (Teal #2ec4b6 at 15% fill)
       L.circle([selectedRecord.latitude, selectedRecord.longitude], {
         radius: selectedRadiusMeters,
-        color: '#06b6d4', // Cyan
+        color: '#2ec4b6',
         weight: 2,
         dashArray: '6, 6',
-        fillColor: '#06b6d4',
-        fillOpacity: 0.12
+        fillColor: '#2ec4b6',
+        fillOpacity: 0.15
       }).addTo(layerGroup);
 
       // Inner ping ring
       L.circle([selectedRecord.latitude, selectedRecord.longitude], {
         radius: 80,
-        color: '#ffffff',
+        color: '#d6e1e5',
         weight: 2,
-        fillColor: '#06b6d4',
-        fillOpacity: 0.8
+        fillColor: '#2ec4b6',
+        fillOpacity: 0.85
       }).addTo(layerGroup);
     }
 
@@ -344,7 +344,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
   return (
     <div className={`flex-1 flex flex-col h-[calc(100vh-50px)] font-sans select-none overflow-hidden transition-colors ${
-      isDarkMode ? 'bg-[#09111e] text-slate-100' : 'bg-slate-100 text-slate-900'
+      isDarkMode ? 'bg-[#0d1113] text-[#d6e1e5]' : 'bg-slate-100 text-slate-900'
     }`}>
       
       {/* 1. Main Workspace: Split into Left Tree Panel + Right Map/Table Panel */}
@@ -352,29 +352,29 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
         
         {/* ================= LEFT TOOL RAIL & DATABASE QUERIES TREE ================= */}
         <div className={`w-72 border-r flex flex-col shrink-0 select-none transition-colors ${
-          isDarkMode ? 'bg-[#08101d] border-[#152338]' : 'bg-white border-slate-200'
+          isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-white border-slate-200'
         }`}>
           
           {/* Top Header of Query Panel */}
           <div className={`p-3 border-b transition-colors ${
-            isDarkMode ? 'border-[#142136] bg-[#0b1526]' : 'border-slate-200 bg-slate-50'
+            isDarkMode ? 'border-[#25323a] bg-[#1a2327]' : 'border-slate-200 bg-slate-50'
           }`}>
             <div className="flex items-center justify-between mb-2">
               <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono ${
-                isDarkMode ? 'text-slate-200' : 'text-slate-700'
+                isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-700'
               }`}>
-                <Folder className="w-3.5 h-3.5 text-cyan-500" />
+                <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />
                 Database Queries
               </span>
-              <div className={`flex items-center gap-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              <div className={`flex items-center gap-1 ${isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}`}>
                 <button 
                   onClick={loadCalls} 
                   title="Reload Queries" 
-                  className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:text-white hover:bg-[#152740]' : 'hover:text-slate-900 hover:bg-slate-200'}`}
+                  className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:text-white hover:bg-[#25323a]' : 'hover:text-slate-900 hover:bg-slate-200'}`}
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-cyan-500' : ''}`} />
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#2ec4b6]' : ''}`} />
                 </button>
-                <button title="New Query" className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:text-white hover:bg-[#152740]' : 'hover:text-slate-900 hover:bg-slate-200'}`}>
+                <button title="New Query" className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:text-white hover:bg-[#25323a]' : 'hover:text-slate-900 hover:bg-slate-200'}`}>
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -389,11 +389,11 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full border rounded px-2.5 py-1 text-xs font-mono focus:outline-none ${
                   isDarkMode 
-                    ? 'bg-[#060c18] border-[#1b2f4c] text-slate-200 placeholder-slate-500 focus:border-cyan-500' 
+                    ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5] placeholder-[#86989f] focus:border-[#2ec4b6]' 
                     : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400 focus:border-cyan-600'
                 }`}
               />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1.5 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#86989f] absolute right-2 top-1.5 pointer-events-none" />
             </div>
           </div>
 
@@ -402,52 +402,66 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             
             {/* Admin 1 Root */}
             <div>
-              <div className="flex items-center gap-1.5 px-2 py-1 text-slate-300 font-bold hover:bg-[#0f1d31] rounded cursor-pointer">
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-                <span className="text-cyan-400">👤 Admin 1</span>
+              <div className={`flex items-center gap-1.5 px-2 py-1 font-bold rounded cursor-pointer ${
+                isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+              }`}>
+                <ChevronDown className="w-3 h-3 text-[#86989f]" />
+                <span className="text-[#2ec4b6]">👤 Admin 1</span>
               </div>
 
               {/* All Queries */}
               <div className="pl-4 space-y-0.5">
                 <div 
                   onClick={() => setIsTreeExpanded(prev => ({ ...prev, allQueries: !prev.allQueries }))}
-                  className="flex items-center gap-1.5 px-2 py-1 text-slate-300 hover:bg-[#0f1d31] rounded cursor-pointer"
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
+                    isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                  }`}
                 >
-                  {isTreeExpanded.allQueries ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
-                  <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                  {isTreeExpanded.allQueries ? <ChevronDown className="w-3 h-3 text-[#86989f]" /> : <ChevronRight className="w-3 h-3 text-[#86989f]" />}
+                  <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
                   <span>All Queries</span>
                 </div>
 
                 {isTreeExpanded.allQueries && (
                   <div className="pl-4 space-y-0.5">
                     {/* Acceptance */}
-                    <div className="flex items-center gap-1.5 px-2 py-1 text-slate-300 hover:bg-[#0f1d31] rounded cursor-pointer">
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
-                      <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
+                      isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                    }`}>
+                      <ChevronDown className="w-3 h-3 text-[#86989f]" />
+                      <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
                       <span>Acceptance</span>
                     </div>
 
                     {/* Basic Queries */}
                     <div className="pl-4 space-y-0.5">
-                      <div className="flex items-center gap-1.5 px-2 py-1 text-slate-300 hover:bg-[#0f1d31] rounded cursor-pointer">
-                        <ChevronDown className="w-3 h-3 text-slate-400" />
-                        <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                      <div className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
+                        isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                      }`}>
+                        <ChevronDown className="w-3 h-3 text-[#86989f]" />
+                        <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
                         <span>Basic Queries</span>
                       </div>
 
                       {/* Sub-queries */}
-                      <div className="pl-5 space-y-0.5 text-slate-400">
+                      <div className={`pl-5 space-y-0.5 ${isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}`}>
                         <div className="px-2 py-0.5 hover:text-white cursor-pointer">Audio Queries</div>
                         <div className="px-2 py-0.5 hover:text-white cursor-pointer">Audit</div>
                         <div className="px-2 py-0.5 hover:text-white cursor-pointer">Basic</div>
                         
-                        {/* CALLS (Active query node from Reference Image 1!) */}
-                        <div className="flex items-center justify-between px-2 py-1 bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 font-bold rounded cursor-pointer">
+                        {/* CALLS (Active query node: Teal tint #12312f) */}
+                        <div className={`flex items-center justify-between px-2 py-1 rounded cursor-pointer border ${
+                          isDarkMode 
+                            ? 'bg-[#12312f] border-[#2ec4b6]/50 text-[#2ec4b6] font-bold' 
+                            : 'bg-teal-50 border-teal-300 text-teal-800 font-bold'
+                        }`}>
                           <span className="flex items-center gap-1.5">
-                            <PhoneCall className="w-3 h-3 text-cyan-400" />
+                            <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />
                             Calls
                           </span>
-                          <span className="text-[10px] bg-cyan-900 px-1.5 rounded text-white font-mono">
+                          <span className={`text-[10px] px-1.5 rounded font-mono ${
+                            isDarkMode ? 'bg-[#141a1d] text-[#2ec4b6] border border-[#2ec4b6]/40' : 'bg-teal-200 text-teal-900'
+                          }`}>
                             {calls.length}
                           </span>
                         </div>
@@ -461,19 +475,19 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                     </div>
 
                     {/* Other Branches */}
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
                       <Folder className="w-3 h-3" />
                       <span>Device Queries</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
                       <Folder className="w-3 h-3" />
                       <span>Internet Queries</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
                       <Folder className="w-3 h-3" />
                       <span>Social Media</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-slate-400 hover:text-white cursor-pointer">
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 text-[#86989f] hover:text-[#d6e1e5] cursor-pointer">
                       <Folder className="w-3 h-3" />
                       <span>Audit Trail</span>
                     </div>
@@ -485,9 +499,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
           </div>
 
           {/* Quick Legal Attribution / Provenance Note */}
-          <div className="p-3 border-t border-[#142136] bg-[#060c18] text-[10px] text-slate-500 font-mono">
-            <div className="text-slate-400 font-semibold mb-1 flex items-center gap-1">
-              <Info className="w-3 h-3 text-cyan-400" />
+          <div className="p-3 border-t border-[#25323a] bg-[#141a1d] text-[10px] text-[#86989f] font-mono">
+            <div className="text-[#d6e1e5] font-semibold mb-1 flex items-center gap-1">
+              <Info className="w-3 h-3 text-[#2ec4b6]" />
               Location Provenance Rule
             </div>
             <span>Radio tower sector coverage reflects carrier telemetry; does not certify legal human identity.</span>
@@ -499,13 +513,13 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           
           {/* Top Query Tab Bar matching Reference Image 1 */}
-          <div className="bg-[#0b1422] border-b border-[#142236] px-4 py-1.5 flex items-center justify-between text-xs font-mono">
+          <div className="bg-[#141a1d] border-b border-[#25323a] px-4 py-1.5 flex items-center justify-between text-xs font-mono">
             <div className="flex items-center gap-2">
-              <div className="px-3 py-1 bg-[#122238] border-t-2 border-cyan-400 text-white font-bold rounded-t flex items-center gap-2">
-                <PhoneCall className="w-3 h-3 text-cyan-400" />
+              <div className="px-3 py-1 bg-[#12312f] border-t-2 border-[#2ec4b6] text-[#2ec4b6] font-bold rounded-t flex items-center gap-2">
+                <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />
                 <span>Query {selectedRecord?.target_number || '5712747502'} (#{selectedRecord?.case_id || '1626'})</span>
               </div>
-              <div className="px-3 py-1 bg-[#09111e] text-slate-400 hover:text-slate-200 cursor-pointer rounded-t">
+              <div className="px-3 py-1 bg-[#1a2327] text-[#86989f] hover:text-[#d6e1e5] cursor-pointer rounded-t">
                 Map View
               </div>
             </div>
@@ -514,7 +528,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             {selectedRecord?.associated_evidence_id && (
               <button
                 onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || 'Case #V-0884', selectedRecord.associated_evidence_id || undefined)}
-                className="flex items-center gap-1.5 bg-red-950/80 hover:bg-red-900 border border-red-500/50 text-red-300 hover:text-white px-3 py-1 rounded text-xs font-bold transition-all shadow-glow-red animate-pulse"
+                className="flex items-center gap-1.5 bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] px-3 py-1 rounded text-xs font-bold transition-all shadow"
               >
                 <Volume2 className="w-3.5 h-3.5" />
                 <span>Analyze Audio Evidence ({selectedRecord.associated_case_code}) →</span>
@@ -524,40 +538,40 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
           {/* ================= MAP CONTROLS SUB-TOOLBAR ================= */}
           <div className={`border-b px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-xs select-none transition-colors ${
-            isDarkMode ? 'bg-[#08101d] border-[#142236]' : 'bg-slate-50 border-slate-200'
+            isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-slate-50 border-slate-200'
           }`}>
             
             {/* Left Toolbar Tools */}
             <div className="flex items-center gap-3">
               <span className={`font-bold uppercase tracking-wider font-mono text-xs ${
-                isDarkMode ? 'text-slate-200' : 'text-slate-800'
+                isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-800'
               }`}>
                 Playback Map
               </span>
 
               {/* Playback icons matching Reference Image 1 */}
               <div className={`flex items-center gap-1 p-1 rounded border ${
-                isDarkMode ? 'bg-[#0f1c2e] border-[#1b2c45]' : 'bg-white border-slate-300'
+                isDarkMode ? 'bg-[#1a2327] border-[#25323a]' : 'bg-white border-slate-300'
               }`}>
-                <button title="Rewind Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-cyan-400 text-slate-400' : 'hover:text-cyan-600 text-slate-500'}`}>
+                <button title="Rewind Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-teal-600 text-slate-500'}`}>
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
-                <button title="Stop Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-red-400 text-slate-400' : 'hover:text-red-600 text-slate-500'}`}>
+                <button title="Stop Playback" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#e5534b] text-[#86989f]' : 'hover:text-red-600 text-slate-500'}`}>
                   <Square className="w-3.5 h-3.5" />
                 </button>
-                <button title="Play Track Animation" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-emerald-400 text-slate-400' : 'hover:text-emerald-600 text-slate-500'}`}>
+                <button title="Play Track Animation" className={`p-1 transition-colors ${isDarkMode ? 'hover:text-[#2ec4b6] text-[#86989f]' : 'hover:text-emerald-600 text-slate-500'}`}>
                   <Play className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               {/* Base Map Selector */}
               <div className="flex items-center gap-1.5 font-mono text-xs">
-                <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Base:</span>
+                <span className={isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}>Base:</span>
                 <select
                   value={baseMapLayer}
                   onChange={(e) => setBaseMapLayer(e.target.value as any)}
                   className={`border rounded px-2 py-1 focus:outline-none ${
-                    isDarkMode ? 'bg-[#0f1c2e] border-[#1b2c45] text-slate-200 focus:border-cyan-400' : 'bg-white border-slate-300 text-slate-800 focus:border-cyan-600'
+                    isDarkMode ? 'bg-[#1a2327] border-[#25323a] text-[#d6e1e5] focus:border-[#2ec4b6]' : 'bg-white border-slate-300 text-slate-800 focus:border-teal-600'
                   }`}
                 >
                   <option value="osm">Hosted OSM</option>
@@ -568,9 +582,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
               {/* Radius Search Selector */}
               <div className={`flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded border ${
-                isDarkMode ? 'bg-[#0c182a] border-[#192b45]' : 'bg-white border-slate-300'
+                isDarkMode ? 'bg-[#1a2327] border-[#25323a]' : 'bg-white border-slate-300'
               }`}>
-                <span className="text-cyan-500 font-bold">Radius:</span>
+                <span className="text-[#2ec4b6] font-bold">Radius:</span>
                 <div className="flex items-center gap-1">
                   {RADIUS_PRESETS.map((p) => (
                     <button
@@ -578,8 +592,8 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                       onClick={() => setSelectedRadiusMeters(p.meters)}
                       className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-all ${
                         selectedRadiusMeters === p.meters
-                          ? 'bg-cyan-500 text-slate-950 shadow'
-                          : isDarkMode ? 'text-slate-400 hover:text-white hover:bg-[#13233a]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                          ? 'bg-[#2ec4b6] text-[#0d1113] shadow'
+                          : isDarkMode ? 'text-[#86989f] hover:text-[#d6e1e5] hover:bg-[#12312f]' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       {p.label}
@@ -592,39 +606,39 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             {/* Right Subject Badges Legend Matching Reference Image 1 */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 font-mono text-xs">
-                {/* Blue: Case 7502 */}
+                {/* 7502: Primary Teal */}
                 <button
                   onClick={() => setVisibleSubjects(prev => ({ ...prev, '7502': !prev['7502'] }))}
                   className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold border transition-all ${
                     visibleSubjects['7502'] 
-                      ? 'bg-blue-600 border-blue-400 text-white' 
-                      : 'bg-blue-950/40 border-blue-800 text-blue-400 opacity-60'
+                      ? 'bg-[#2ec4b6] border-[#2ec4b6] text-[#0d1113]' 
+                      : 'bg-[#12312f] border-[#2ec4b6]/50 text-[#2ec4b6]'
                   }`}
                 >
                   <Radio className="w-3 h-3" />
                   <span>7502 VoLTE</span>
                 </button>
 
-                {/* Purple: Case 6057 */}
+                {/* 6057: Sample blue */}
                 <button
                   onClick={() => setVisibleSubjects(prev => ({ ...prev, '6057': !prev['6057'] }))}
                   className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold border transition-all ${
                     visibleSubjects['6057'] 
-                      ? 'bg-purple-600 border-purple-400 text-white' 
-                      : 'bg-purple-950/40 border-purple-800 text-purple-400 opacity-60'
+                      ? 'bg-[#8fb3c9] border-[#8fb3c9] text-[#0d1113]' 
+                      : 'bg-[#8fb3c9]/15 border-[#8fb3c9]/40 text-[#8fb3c9]'
                   }`}
                 >
                   <Radio className="w-3 h-3" />
                   <span>6057 VoLTE</span>
                 </button>
 
-                {/* Orange: Case 7498 */}
+                {/* 7498: Amber */}
                 <button
                   onClick={() => setVisibleSubjects(prev => ({ ...prev, '7498': !prev['7498'] }))}
                   className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-bold border transition-all ${
                     visibleSubjects['7498'] 
-                      ? 'bg-orange-600 border-orange-400 text-white' 
-                      : 'bg-orange-950/40 border-orange-800 text-orange-400 opacity-60'
+                      ? 'bg-[#f0a73a] border-[#f0a73a] text-[#0d1113]' 
+                      : 'bg-[#f0a73a]/15 border-[#f0a73a]/40 text-[#f0a73a]'
                   }`}
                 >
                   <Radio className="w-3 h-3" />
@@ -636,47 +650,55 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
           </div>
 
           {/* ================= MAP CANVAS CONTAINER (50% HEIGHT) ================= */}
-          <div className="h-72 lg:h-96 relative w-full bg-[#050c18] border-b border-[#142236]">
+          <div className="h-72 lg:h-96 relative w-full bg-[#0d1113] border-b border-[#25323a]">
             {/* The Actual Leaflet Map Canvas */}
             <div ref={mapContainerRef} className="w-full h-full z-10" />
 
             {/* Floating Selected Record Info Overlay on Map */}
-            {selectedRecord && (
-              <div className="absolute top-3 left-3 z-20 bg-[#081220]/95 backdrop-blur-md border border-[#1b2f4c] rounded-lg p-2.5 shadow-xl text-xs font-mono max-w-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-[#14233a] pb-1.5 mb-1.5">
-                  <span className="font-bold text-white flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                    Ref #{selectedRecord.ref_number} (Case {selectedRecord.case_id})
+            {selectedRecord && selectedRecord.latitude && (
+              <div className="absolute top-3 left-3 z-20 bg-[#141a1d]/95 backdrop-blur-md border border-[#25323a] rounded-xl p-3 shadow-2xl text-xs font-mono text-[#d6e1e5] max-w-sm">
+                <div className="flex items-center justify-between gap-2 border-b border-[#25323a] pb-2 mb-2">
+                  <span className="font-bold text-[#d6e1e5] flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                    Ref #{selectedRecord.ref_number} ({selectedRecord.event_id || `Case ${selectedRecord.case_id}`})
                   </span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                    selectedRecord.location_provenance === 'VERIFIED LOCATION'
-                      ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50'
-                      : selectedRecord.location_provenance === 'ESTIMATED AREA'
-                      ? 'bg-amber-950 text-amber-300 border border-amber-500/50'
-                      : 'bg-red-950 text-red-300 border border-red-500/50'
+                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
+                    selectedRecord.source_type === 'HANDSET_EMERGENCY' || selectedRecord.source_type === 'CONSENT_LINK_GPS'
+                      ? 'bg-[#12312f] text-[#2ec4b6] border border-[#2ec4b6]/60'
+                      : 'bg-[#f0a73a]/20 text-[#f0a73a] border border-[#f0a73a]/60'
                   }`}>
-                    {selectedRecord.location_provenance}
+                    {selectedRecord.source_badge || selectedRecord.location_provenance}
                   </span>
                 </div>
 
-                <div className="space-y-0.5 text-[11px] text-slate-300">
-                  <div>Target: <span className="text-white font-bold">{selectedRecord.target_number}</span></div>
-                  <div>Tower Cell: <span className="text-cyan-300">{selectedRecord.first_tower}</span></div>
-                  <div>Coordinates: <span className="text-slate-400">{selectedRecord.latitude?.toFixed(4)}, {selectedRecord.longitude?.toFixed(4)}</span></div>
-                  {selectedRecord.azimuth_degrees !== null && (
-                    <div>Sector Azimuth: <span className="text-amber-300">{selectedRecord.azimuth_degrees}° (Beamwidth: {selectedRecord.beamwidth_degrees}°)</span></div>
+                <div className="space-y-1.5 text-[11px] text-[#86989f]">
+                  {selectedRecord.approximate_address && (
+                    <div className="text-[#d6e1e5] font-sans font-medium text-xs bg-[#1a2327] p-2 rounded-lg border border-[#25323a]">
+                      <span className="text-[#2ec4b6] font-mono text-[10px] block mb-0.5 font-bold">Approximate Address:</span>
+                      {selectedRecord.approximate_address}
+                    </div>
                   )}
-                  <div>Coverage Radius: <span className="text-emerald-300">{selectedRecord.cell_radius_meters}m</span></div>
+                  <div>Target: <span className="text-[#d6e1e5] font-bold">{selectedRecord.target_number}</span></div>
+                  <div>Coordinates: <span className="text-[#d6e1e5] font-mono">{selectedRecord.latitude?.toFixed(4)}°N, {selectedRecord.longitude?.toFixed(4)}°W</span></div>
+                  <div>Coverage Radius: <span className="text-[#2ec4b6] font-bold">±{selectedRecord.accuracy_meters || selectedRecord.cell_radius_meters}m circle</span></div>
+                  {selectedRecord.azimuth_degrees !== null && selectedRecord.azimuth_degrees !== undefined && (
+                    <div>Sector Azimuth: <span className="text-[#f0a73a]">{selectedRecord.azimuth_degrees}° (Beamwidth: {selectedRecord.beamwidth_degrees}°)</span></div>
+                  )}
+                  <div className="text-[10px] pt-1 text-[#86989f] italic">
+                    {selectedRecord.legal_basis || selectedRecord.provenance_details}
+                  </div>
                 </div>
 
                 {selectedRecord.associated_case_code && (
-                  <div className="mt-2 pt-1.5 border-t border-[#14233a] flex items-center justify-between">
-                    <span className="text-amber-400 font-bold text-[10px]">🎙️ Audio Attached</span>
+                  <div className="mt-2.5 pt-2 border-t border-[#25323a] flex items-center justify-between">
+                    <span className="text-[#f0a73a] font-bold text-[10px] flex items-center gap-1">
+                      <Volume2 className="w-3.5 h-3.5" /> Audio Linked
+                    </span>
                     <button
                       onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || 'Case #V-0884', selectedRecord.associated_evidence_id || undefined)}
-                      className="text-[10px] bg-[#14b8a6] hover:bg-[#0d9488] text-slate-950 font-bold px-2 py-0.5 rounded transition-colors"
+                      className="text-[10px] bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold px-2.5 py-1 rounded transition-colors shadow"
                     >
-                      Open Forensics →
+                      Analyze Audio Evidence →
                     </button>
                   </div>
                 )}
@@ -684,15 +706,31 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             )}
 
             {/* Location Unavailable Banner if selected record has no coordinates */}
-            {selectedRecord && !selectedRecord.latitude && (
-              <div className="absolute inset-0 z-20 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6">
-                <div className="bg-[#0c1524] border border-amber-500/40 p-4 rounded-xl text-center max-w-md shadow-2xl">
-                  <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-                  <h4 className="text-sm font-bold text-white mb-1">LOCATION UNAVAILABLE</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed font-mono">
-                    Record #{selectedRecord.ref_number} contains no valid cell tower handoff coordinates. 
-                    RAKSHAM adheres to strict forensic standards: we never fabricate live coordinates or artificial GPS tracking.
+            {selectedRecord && (!selectedRecord.latitude || selectedRecord.source_type === 'LOCATION_UNAVAILABLE' || selectedRecord.location_provenance === 'LOCATION UNAVAILABLE') && (
+              <div className="absolute inset-0 z-20 bg-[#0d1113]/90 backdrop-blur-sm flex items-center justify-center p-6">
+                <div className="bg-[#141a1d] border border-[#e5534b]/60 p-6 rounded-2xl text-center max-w-lg shadow-2xl space-y-3.5">
+                  <div className="w-12 h-12 rounded-full bg-[#e5534b]/20 border border-[#e5534b] text-[#e5534b] flex items-center justify-center mx-auto">
+                    <AlertTriangle className="w-6 h-6 text-[#e5534b]" />
+                  </div>
+                  <h4 className="text-base font-bold text-[#e5534b] tracking-wide font-mono">LOCATION UNAVAILABLE</h4>
+                  <p className="text-xs text-[#d6e1e5] leading-relaxed font-sans">
+                    A voice, a phone number or an IP address cannot tell you where someone is, and RAKSHAM will not build anything that guesses it.
                   </p>
+                  <p className="text-[11px] text-[#86989f] font-mono leading-relaxed">
+                    A map position can only come from a record you are allowed to use: carrier tower/CDR records (area, not a point), handset emergency GPS, or a complainant GPS consent link. No authorized record exists for this call.
+                  </p>
+                  <div className="p-2.5 rounded-lg bg-[#1a2327] border border-[#25323a] text-xs font-mono text-[#2ec4b6] font-semibold">
+                    The audio forensics and anti-spoofing analysis still works uninterrupted.
+                  </div>
+                  {selectedRecord.associated_case_code && (
+                    <button
+                      onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code!, selectedRecord.associated_evidence_id || undefined)}
+                      className="w-full py-2.5 px-4 rounded-xl bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs font-mono flex items-center justify-center gap-2 shadow transition-all"
+                    >
+                      <Volume2 className="w-4 h-4 text-[#0d1113]" />
+                      <span>Analyze Audio Evidence ({selectedRecord.associated_case_code}) →</span>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -700,21 +738,21 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
           {/* ================= CDR CALL RECORDS TABLE (BOTTOM 50%) ================= */}
           <div className={`flex-1 flex flex-col min-h-0 overflow-hidden transition-colors ${
-            isDarkMode ? 'bg-[#08101d]' : 'bg-white'
+            isDarkMode ? 'bg-[#0d1113]' : 'bg-white'
           }`}>
             
             {/* Table Header Bar Matching Reference Image 1 */}
             <div className={`border-b px-4 py-2 flex items-center justify-between text-xs font-mono transition-colors ${
-              isDarkMode ? 'bg-[#0b1626] border-[#142338]' : 'bg-slate-100 border-slate-200'
+              isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-slate-100 border-slate-200'
             }`}>
               <div className="flex items-center gap-2">
                 <span className={`font-bold uppercase tracking-wide ${
-                  isDarkMode ? 'text-slate-200' : 'text-slate-700'
+                  isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-700'
                 }`}>
                   Query Result - Calls
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded border ${
-                  isDarkMode ? 'text-slate-400 bg-[#122238] border-[#1a2d47]' : 'text-slate-600 bg-white border-slate-300'
+                  isDarkMode ? 'text-[#86989f] bg-[#1a2327] border-[#25323a]' : 'text-slate-600 bg-white border-slate-300'
                 }`}>
                   {filteredCalls.length} records found
                 </span>
@@ -723,13 +761,13 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
               {/* Geographic Radius Toggle Filter */}
               <div className="flex items-center gap-2">
                 <label className={`flex items-center gap-1.5 text-[11px] cursor-pointer ${
-                  isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                  isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-700'
                 }`}>
                   <input
                     type="checkbox"
                     checked={filterWithinRadiusOnly}
                     onChange={(e) => setFilterWithinRadiusOnly(e.target.checked)}
-                    className="rounded bg-[#060c18] border-slate-600 text-cyan-500"
+                    className="rounded bg-[#1a2327] border-[#25323a] text-[#2ec4b6] accent-[#2ec4b6]"
                   />
                   <span>Filter records inside {selectedRadiusMeters}m radius only</span>
                 </label>
@@ -740,7 +778,7 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             <div className="flex-1 overflow-auto">
               <table className="w-full text-left text-xs font-mono border-collapse select-text">
                 <thead className={`text-[10px] uppercase tracking-wider sticky top-0 z-20 border-b transition-colors ${
-                  isDarkMode ? 'bg-[#0d1a2c] text-slate-400 border-[#152740]' : 'bg-slate-200 text-slate-700 border-slate-300'
+                  isDarkMode ? 'bg-[#1a2327] text-[#86989f] border-[#25323a]' : 'bg-slate-200 text-slate-700 border-slate-300'
                 }`}>
                   <tr>
                     <th className="p-2 w-8 text-center">✓</th>
@@ -748,26 +786,23 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                     <th className="p-2">Case</th>
                     <th className="p-2">Target Number</th>
                     <th className="p-2">Start Date/Time</th>
-                    <th className="p-2">Created Date/Time</th>
-                    <th className="p-2">Duration</th>
+                    <th className="p-2">Approximate Address</th>
+                    <th className="p-2">Radius / Area</th>
                     <th className="p-2">Direction</th>
-                    <th className="p-2">First Tower</th>
-                    <th className="p-2">Last Tower</th>
-                    <th className="p-2">Provenance</th>
+                    <th className="p-2">Lawful Provenance</th>
                     <th className="p-2">Audio Evidence</th>
                   </tr>
                 </thead>
-                <tbody className={`divide-y ${isDarkMode ? 'divide-[#132236]' : 'divide-slate-200'}`}>
+                <tbody className={`divide-y ${isDarkMode ? 'divide-[#25323a]' : 'divide-slate-200'}`}>
                   {filteredCalls.map((rec, idx) => {
                     const isSelected = rec.ref_number === activeRef;
 
-                    // Alternating soft green / soft blue rows matching Reference Image 1
                     const isEven = idx % 2 === 0;
                     const rowBgClass = isSelected
-                      ? 'bg-blue-600 text-white font-bold' // Highlighted blue selected row matching Ref Image 1!
+                      ? 'bg-[#12312f] text-[#2ec4b6] font-bold border-y border-[#2ec4b6]/50' // Teal background tint (selected row) #12312f
                       : isEven
-                      ? (isDarkMode ? 'bg-[#0a1524] hover:bg-[#12233a] text-slate-200' : 'bg-[#eaf7ee] hover:bg-emerald-100/70 text-slate-800') // Alternating soft green
-                      : (isDarkMode ? 'bg-[#091822] hover:bg-[#12233a] text-slate-200' : 'bg-[#edf5fc] hover:bg-blue-100/70 text-slate-800'); // Alternating soft blue
+                      ? (isDarkMode ? 'bg-[#141a1d] hover:bg-[#1a2327] text-[#d6e1e5]' : 'bg-[#eaf7ee] hover:bg-emerald-100/70 text-slate-800')
+                      : (isDarkMode ? 'bg-[#0d1113] hover:bg-[#1a2327] text-[#d6e1e5]' : 'bg-[#edf5fc] hover:bg-blue-100/70 text-slate-800');
 
                     return (
                       <tr
@@ -781,9 +816,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                         {/* Checkbox */}
                         <td className="p-2 text-center">
                           {isSelected ? (
-                            <CheckSquare className="w-3.5 h-3.5 text-white inline-block" />
+                            <CheckSquare className="w-3.5 h-3.5 text-[#2ec4b6] inline-block" />
                           ) : (
-                            <SquareIcon className="w-3.5 h-3.5 text-slate-500 inline-block" />
+                            <SquareIcon className="w-3.5 h-3.5 text-[#86989f] inline-block" />
                           )}
                         </td>
 
@@ -794,10 +829,10 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
                         {/* Case ID */}
                         <td className="p-2 font-mono">
-                          <span className={`px-1.5 py-0.2 rounded text-[10px] ${
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                             rec.case_id === '7502' 
-                              ? 'bg-blue-900/60 text-blue-200' 
-                              : 'bg-orange-900/60 text-orange-200'
+                              ? 'bg-[#12312f] text-[#2ec4b6] border border-[#2ec4b6]/40' 
+                              : 'bg-[#1a2327] text-[#86989f] border border-[#25323a]'
                           }`}>
                             {rec.case_id}
                           </span>
@@ -809,47 +844,47 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                         </td>
 
                         {/* Start Date/Time */}
-                        <td className="p-2 text-slate-300 whitespace-nowrap">
+                        <td className="p-2 text-[#d6e1e5] whitespace-nowrap">
                           {rec.start_time}
                         </td>
 
-                        {/* Created Date/Time */}
-                        <td className="p-2 text-slate-400 whitespace-nowrap">
-                          {rec.created_time}
+                        {/* Approximate Street Address */}
+                        <td className="p-2 max-w-xs truncate font-sans text-[11px]" title={rec.approximate_address || 'Location unavailable'}>
+                          {rec.approximate_address ? (
+                            <span className="text-[#d6e1e5]">{rec.approximate_address}</span>
+                          ) : (
+                            <span className="text-[#e5534b] font-mono text-[10px] italic">Location unavailable</span>
+                          )}
                         </td>
 
-                        {/* Duration */}
-                        <td className="p-2 font-mono">
-                          {rec.duration_str}
+                        {/* Coverage Radius / Accuracy Area */}
+                        <td className="p-2 font-mono text-[11px] whitespace-nowrap">
+                          {rec.cell_radius_meters || rec.accuracy_meters ? (
+                            <span className="text-[#2ec4b6]">±{rec.accuracy_meters || rec.cell_radius_meters}m</span>
+                          ) : (
+                            <span className="text-[#86989f]">—</span>
+                          )}
                         </td>
 
                         {/* Direction */}
                         <td className="p-2 uppercase text-[10px] font-semibold">
-                          <span className={rec.direction === 'incoming' ? 'text-cyan-400' : 'text-amber-400'}>
+                          <span className={rec.direction === 'incoming' ? 'text-[#2ec4b6]' : 'text-[#f0a73a]'}>
                             {rec.direction}
                           </span>
                         </td>
 
-                        {/* First Tower */}
-                        <td className="p-2 font-mono text-[11px] text-slate-300 truncate max-w-[140px]" title={rec.first_tower}>
-                          {rec.first_tower}
-                        </td>
-
-                        {/* Last Tower */}
-                        <td className="p-2 font-mono text-[11px] text-slate-400 truncate max-w-[140px]" title={rec.last_tower}>
-                          {rec.last_tower}
-                        </td>
-
                         {/* Location Provenance */}
                         <td className="p-2 whitespace-nowrap">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${
                             rec.location_provenance === 'VERIFIED LOCATION'
-                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40'
+                              ? 'bg-[#12312f] text-[#2ec4b6] border border-[#2ec4b6]/60'
                               : rec.location_provenance === 'ESTIMATED AREA'
-                              ? 'bg-amber-950 text-amber-400 border border-amber-500/40'
-                              : 'bg-slate-900 text-slate-400 border border-slate-700'
+                              ? 'bg-[#f0a73a]/20 text-[#f0a73a] border border-[#f0a73a]/60'
+                              : rec.location_provenance === 'SAMPLE LOCATION'
+                              ? 'bg-[#8fb3c9]/20 text-[#8fb3c9] border border-[#8fb3c9]/60'
+                              : 'bg-[#e5534b]/20 text-[#e5534b] border border-[#e5534b]/60'
                           }`}>
-                            {rec.location_provenance}
+                            {rec.source_badge || rec.location_provenance}
                           </span>
                         </td>
 
@@ -861,13 +896,13 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                                 e.stopPropagation();
                                 onNavigateToVoiceForensics(rec.associated_case_code || 'Case #V-0884', rec.associated_evidence_id || undefined);
                               }}
-                              className="flex items-center gap-1 text-[10px] font-bold text-cyan-300 hover:text-white bg-cyan-950 hover:bg-cyan-800 border border-cyan-500/50 px-2 py-0.5 rounded transition-colors"
+                              className="flex items-center gap-1 text-[10px] font-bold text-[#2ec4b6] hover:text-[#0d1113] bg-[#12312f] hover:bg-[#2ec4b6] border border-[#2ec4b6]/60 px-2 py-0.5 rounded transition-colors"
                             >
-                              <Volume2 className="w-3 h-3 text-cyan-400" />
+                              <Volume2 className="w-3 h-3" />
                               <span>{rec.associated_case_code}</span>
                             </button>
                           ) : (
-                            <span className="text-[10px] text-slate-500">—</span>
+                            <span className="text-[10px] text-[#86989f]">—</span>
                           )}
                         </td>
                       </tr>

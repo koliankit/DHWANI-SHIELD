@@ -87,12 +87,12 @@ export const QuickTestExamples: React.FC<Props> = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5 text-accent-electric" />
-          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+          <Zap className="w-3.5 h-3.5 text-[#2ec4b6]" />
+          <h3 className="text-xs font-bold text-[#d6e1e5] uppercase tracking-wider font-mono">
             Standard Verification Test Scenarios
           </h3>
         </div>
-        <span className="text-[11px] text-slate-400">Click card to run full two-layer analysis</span>
+        <span className="text-[11px] text-[#86989f]">Click card to run full two-layer analysis</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -102,28 +102,28 @@ export const QuickTestExamples: React.FC<Props> = ({
           const isPlaying = playingId === ex.id;
 
           const tagStyles = {
-            green: 'bg-emerald-950/70 text-emerald-400 border-emerald-800/50',
-            amber: 'bg-amber-950/70 text-amber-400 border-amber-800/50',
-            red: 'bg-rose-950/70 text-rose-400 border-rose-800/50',
+            green: 'bg-[#12312f] text-[#2ec4b6] border-[#2ec4b6]/50',
+            amber: 'bg-[#f0a73a]/15 text-[#f0a73a] border-[#f0a73a]/50',
+            red: 'bg-[#e5534b]/15 text-[#e5534b] border-[#e5534b]/50',
           }[ex.tagColor];
 
           return (
             <div
               key={ex.id}
               onClick={() => onSelectExample(ex.id)}
-              className={`group bg-bg-card hover:bg-bg-cardHover rounded-xl p-3.5 border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+              className={`group rounded-xl p-3.5 border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
                 isSelected
-                  ? 'border-accent-blue shadow-glow-blue bg-bg-surface/50'
-                  : 'border-border-subtle hover:border-border-active'
+                  ? 'border-[#2ec4b6] bg-[#12312f]/40 shadow-sm'
+                  : 'bg-[#141a1d] hover:bg-[#1a2327] border-[#25323a]'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-1.5 rounded-lg bg-bg-surface border border-border-subtle text-slate-300 flex-shrink-0">
-                      <Icon className="w-3.5 h-3.5 text-accent-electric" />
+                    <div className="p-1.5 rounded-lg bg-[#1a2327] border border-[#25323a] text-[#d6e1e5] flex-shrink-0">
+                      <Icon className="w-3.5 h-3.5 text-[#2ec4b6]" />
                     </div>
-                    <span className="text-xs font-bold text-white group-hover:text-accent-electric transition-colors truncate">
+                    <span className="text-xs font-bold text-[#d6e1e5] group-hover:text-[#2ec4b6] transition-colors truncate">
                       {ex.title}
                     </span>
                   </div>
@@ -133,30 +133,30 @@ export const QuickTestExamples: React.FC<Props> = ({
                   </span>
                 </div>
 
-                <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-2.5">
+                <p className="text-[11px] text-[#86989f] line-clamp-2 leading-relaxed mb-2.5">
                   {ex.description}
                 </p>
 
-                <div className="text-[10px] font-mono text-slate-400 bg-bg-deep/70 px-2 py-1 rounded border border-border-subtle/50 mb-2 truncate">
+                <div className="text-[10px] font-mono text-[#86989f] bg-[#0d1113] px-2 py-1 rounded border border-[#25323a] mb-2 truncate">
                   {ex.layerHighlight}
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-border-subtle/50 text-xs">
+              <div className="flex items-center justify-between pt-2 border-t border-[#25323a] text-xs">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => handlePreviewPlay(e, ex.id)}
-                    className="w-6 h-6 rounded-full bg-bg-surface hover:bg-accent-blue text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+                    className="w-6 h-6 rounded-full bg-[#1a2327] hover:bg-[#2ec4b6] text-[#d6e1e5] hover:text-[#0d1113] border border-[#25323a] flex items-center justify-center transition-colors"
                     title={isPlaying ? "Pause preview" : "Listen to audio preview"}
                   >
                     {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
                   </button>
-                  <span className="font-mono text-[10px] text-slate-400">{ex.duration}</span>
+                  <span className="font-mono text-[10px] text-[#86989f]">{ex.duration}</span>
                 </div>
 
                 <button
                   disabled={isAnalyzing}
-                  className="text-[11px] font-semibold text-accent-electric group-hover:underline flex items-center gap-1"
+                  className="text-[11px] font-bold text-[#2ec4b6] group-hover:underline flex items-center gap-1"
                 >
                   <span>Run Analysis</span>
                   <ArrowRight className="w-3 h-3" />

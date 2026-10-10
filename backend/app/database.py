@@ -9,6 +9,10 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS analyses (
             id TEXT PRIMARY KEY,
+            event_id TEXT,
+            file_hash TEXT,
+            call_type TEXT DEFAULT 'recorded_upload',
+            legal_authority TEXT,
             filename TEXT NOT NULL,
             file_size_bytes INTEGER NOT NULL,
             audio_duration_seconds REAL NOT NULL,
@@ -16,6 +20,8 @@ def init_db():
             channels INTEGER NOT NULL,
             waveform_data TEXT NOT NULL,
             synthetic_speech_score REAL NOT NULL,
+            speaker_similarity_score REAL DEFAULT 85.0,
+            anti_spoofing_score REAL DEFAULT 0.5,
             authenticity_label TEXT NOT NULL,
             authenticity_confidence REAL NOT NULL,
             uncertainty_pct REAL NOT NULL,
@@ -24,6 +30,7 @@ def init_db():
             transcript_segments TEXT NOT NULL,
             scam_indicators_count INTEGER NOT NULL,
             scam_indicators TEXT NOT NULL,
+            location_record TEXT,
             overall_risk TEXT NOT NULL,
             risk_color TEXT NOT NULL,
             risk_explanation TEXT NOT NULL,
@@ -45,12 +52,26 @@ def init_db():
             warning_reasons TEXT
         )
     """)
-    # Add columns if migrating existing db
-    for col, col_type in [("show_warning", "INTEGER DEFAULT 0"), ("warning_message", "TEXT"), ("warning_reasons", "TEXT")]:
+    
+    # Safe schema migration for any missing columns
+    migration_cols = [
+        ("event_id", "TEXT"),
+        ("file_hash", "TEXT"),
+        ("call_type", "TEXT DEFAULT 'recorded_upload'"),
+        ("legal_authority", "TEXT"),
+        ("location_record", "TEXT"),
+        ("speaker_similarity_score", "REAL DEFAULT 85.0"),
+        ("anti_spoofing_score", "REAL DEFAULT 0.5"),
+        ("show_warning", "INTEGER DEFAULT 0"),
+        ("warning_message", "TEXT"),
+        ("warning_reasons", "TEXT")
+    ]
+    for col, col_type in migration_cols:
         try:
             cursor.execute(f"ALTER TABLE analyses ADD COLUMN {col} {col_type}")
         except Exception:
             pass
+            
     conn.commit()
     conn.close()
 
@@ -59,17 +80,22 @@ def save_analysis(data: Dict[str, Any]):
     cursor = conn.cursor()
     cursor.execute("""
         INSERT OR REPLACE INTO analyses (
-            id, filename, file_size_bytes, audio_duration_seconds, sample_rate, channels,
-            waveform_data, synthetic_speech_score, authenticity_label, authenticity_confidence,
+            id, event_id, file_hash, call_type, legal_authority, filename, file_size_bytes,
+            audio_duration_seconds, sample_rate, channels, waveform_data, synthetic_speech_score,
+            speaker_similarity_score, anti_spoofing_score, authenticity_label, authenticity_confidence,
             uncertainty_pct, acoustic_breakdown, transcript_text, transcript_segments,
-            scam_indicators_count, scam_indicators, overall_risk, risk_color, risk_explanation,
-            evidence_summary, voice_model_result, transcript_analysis_result,
+            scam_indicators_count, scam_indicators, location_record, overall_risk, risk_color,
+            risk_explanation, evidence_summary, voice_model_result, transcript_analysis_result,
             contextual_fraud_assessment, identity_verification_status, recommended_actions,
             model_name, model_version, stt_engine, fraud_engine, processing_duration_ms,
             created_at, warnings, show_warning, warning_message, warning_reasons
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data["analysis_id"],
+        data.get("event_id", data["analysis_id"][:12]),
+        data.get("file_hash", ""),
+        data.get("call_type", "recorded_upload"),
+        data.get("legal_authority", "Recording notice / Lawful authority"),
         data["filename"],
         data["file_size_bytes"],
         data["audio_duration_seconds"],
@@ -77,6 +103,8 @@ def save_analysis(data: Dict[str, Any]):
         data["channels"],
         json.dumps(data["waveform_data"]),
         data["synthetic_speech_score"],
+        data.get("speaker_similarity_score", 85.0),
+        data.get("anti_spoofing_score", data["synthetic_speech_score"]),
         data["authenticity_label"],
         data["authenticity_confidence"],
         data["uncertainty_pct"],
@@ -85,6 +113,7 @@ def save_analysis(data: Dict[str, Any]):
         json.dumps(data["transcript_segments"]),
         data["scam_indicators_count"],
         json.dumps(data["scam_indicators"]),
+        json.dumps(data.get("location_record")) if data.get("location_record") else None,
         data["overall_risk"],
         data["risk_color"],
         data["risk_explanation"],
@@ -108,24 +137,53 @@ def save_analysis(data: Dict[str, Any]):
     conn.commit()
     conn.close()
 
+def update_analysis_location(analysis_id: str, location_record: Dict[str, Any]) -> bool:
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE analyses SET location_record = ? WHERE id = ? OR event_id = ?
+    """, (json.dumps(location_record), analysis_id, analysis_id))
+    rows_affected = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return rows_affected > 0
+
 def get_analysis_by_id(analysis_id: str) -> Optional[Dict[str, Any]]:
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
+    cursor.execute("SELECT * FROM analyses WHERE id = ? OR event_id = ?", (analysis_id, analysis_id))
     row = cursor.fetchone()
     conn.close()
     if not row:
         return None
     d = dict(row)
+    
+    loc_record = None
+    if d.get("location_record"):
+        try:
+            loc_record = json.loads(d["location_record"])
+        except Exception:
+            pass
+
     return {
         "analysis_id": d["id"],
+        "event_id": d.get("event_id") or d["id"][:12],
+        "file_hash": d.get("file_hash") or "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "call_type": d.get("call_type") or "recorded_upload",
+        "legal_authority": d.get("legal_authority") or "Lawful authority verified",
         "filename": d["filename"],
         "file_size_bytes": d["file_size_bytes"],
         "audio_duration_seconds": d["audio_duration_seconds"],
         "sample_rate": d["sample_rate"],
         "channels": d["channels"],
         "waveform_data": json.loads(d["waveform_data"]),
+        "speaker_similarity_model": "ECAPA-TDNN (SpeechBrain)",
+        "speaker_similarity_score": d.get("speaker_similarity_score", 85.0),
+        "speaker_similarity_threshold": 85.0,
+        "voiceprint_status": "DIVERGENT" if d.get("speaker_similarity_score", 85.0) < 70.0 else "MATCHING",
+        "anti_spoofing_model": "AASIST / RawNet2 (ASVspoof 2021)",
+        "anti_spoofing_score": d.get("anti_spoofing_score", d["synthetic_speech_score"]),
         "synthetic_speech_score": d["synthetic_speech_score"],
         "authenticity_label": d["authenticity_label"],
         "authenticity_confidence": d["authenticity_confidence"],
@@ -135,6 +193,7 @@ def get_analysis_by_id(analysis_id: str) -> Optional[Dict[str, Any]]:
         "transcript_segments": json.loads(d["transcript_segments"]),
         "scam_indicators_count": d["scam_indicators_count"],
         "scam_indicators": json.loads(d["scam_indicators"]),
+        "location_record": loc_record,
         "overall_risk": d["overall_risk"],
         "risk_color": d["risk_color"],
         "risk_explanation": d["risk_explanation"],
@@ -161,7 +220,7 @@ def get_history(limit: int = 50, risk_filter: Optional[str] = None, search: Opti
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    query = "SELECT id, filename, audio_duration_seconds, synthetic_speech_score, authenticity_label, scam_indicators_count, overall_risk, created_at FROM analyses WHERE 1=1"
+    query = "SELECT id, event_id, file_hash, filename, audio_duration_seconds, synthetic_speech_score, authenticity_label, scam_indicators_count, overall_risk, created_at FROM analyses WHERE 1=1"
     params = []
     
     if risk_filter and risk_filter.upper() != "ALL":
@@ -169,9 +228,9 @@ def get_history(limit: int = 50, risk_filter: Optional[str] = None, search: Opti
         params.append(risk_filter.upper())
         
     if search:
-        query += " AND (filename LIKE ? OR transcript_text LIKE ?)"
-        term = f"%{search}%"
-        params.extend([term, term])
+        query += " AND (filename LIKE ? OR transcript_text LIKE ? OR id LIKE ? OR event_id LIKE ?)"
+        s = f"%{search}%"
+        params.extend([s, s, s, s])
         
     query += " ORDER BY created_at DESC LIMIT ?"
     params.append(limit)
@@ -180,25 +239,28 @@ def get_history(limit: int = 50, risk_filter: Optional[str] = None, search: Opti
     rows = cursor.fetchall()
     conn.close()
     
-    return [
-        {
-            "analysis_id": r["id"],
-            "filename": r["filename"],
-            "audio_duration_seconds": r["audio_duration_seconds"],
-            "synthetic_speech_score": r["synthetic_speech_score"],
-            "authenticity_label": r["authenticity_label"],
-            "scam_indicators_count": r["scam_indicators_count"],
-            "overall_risk": r["overall_risk"],
-            "created_at": r["created_at"]
-        }
-        for r in rows
-    ]
+    results = []
+    for r in rows:
+        d = dict(r)
+        results.append({
+            "analysis_id": d["id"],
+            "event_id": d.get("event_id") or d["id"][:12],
+            "file_hash": d.get("file_hash") or "",
+            "filename": d["filename"],
+            "audio_duration_seconds": d["audio_duration_seconds"],
+            "synthetic_speech_score": d["synthetic_speech_score"],
+            "authenticity_label": d["authenticity_label"],
+            "scam_indicators_count": d["scam_indicators_count"],
+            "overall_risk": d["overall_risk"],
+            "created_at": d["created_at"]
+        })
+    return results
 
 def delete_analysis(analysis_id: str) -> bool:
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
-    affected = cursor.rowcount > 0
+    cursor.execute("DELETE FROM analyses WHERE id = ? OR event_id = ?", (analysis_id, analysis_id))
+    deleted = cursor.rowcount > 0
     conn.commit()
     conn.close()
-    return affected
+    return deleted

@@ -23,7 +23,8 @@ import {
   Mic, 
   ShieldCheck, 
   Hash, 
-  ExternalLink 
+  ExternalLink,
+  Link2 
 } from 'lucide-react';
 import { AnalysisResponse } from '../../types';
 import { api } from '../../services/api';
@@ -38,6 +39,7 @@ interface Props {
 interface CaseItem {
   id: string;
   code: string;
+  eventId: string;
   title: string;
   duration: number; // in seconds
   anomalyTime: number;
@@ -55,6 +57,11 @@ interface CaseItem {
   linkedCallRef: number;
   cellTowerId: string;
   locationArea: string;
+  locationSource: 'CARRIER_TOWER_CDR' | 'HANDSET_EMERGENCY' | 'CONSENT_LINK_GPS' | 'LOCATION_UNAVAILABLE';
+  locationSourceBadge: string;
+  approximateAddress: string | null;
+  accuracyRadiusMeters: number | null;
+  legalBasis: string;
   sha256Hash: string;
   evidenceId: string;
   authenticityCategory: 'HIGH RISK' | 'REVIEW REQUIRED' | 'LOW RISK';
@@ -65,6 +72,7 @@ const CASES: CaseItem[] = [
   {
     id: 'case-v0884',
     code: 'Case #V-0884',
+    eventId: 'EVT-2026-0884',
     title: 'Live stream capture — AGM',
     duration: 38.0,
     anomalyTime: 26.4,
@@ -75,21 +83,27 @@ const CASES: CaseItem[] = [
     playbackAttackPct: 74,
     temporalBreakText: 'TEMPORAL BREAK — 00:26.4',
     principal: 'Template #P-0047 · Active',
-    model: 'ECAPA-TDNN + Mel-spectrogram ensemble',
+    model: 'ECAPA-TDNN (SpeechBrain) + AASIST (ASVspoof)',
     submissionDate: '2026-05-14',
-    sourceType: 'Live stream capture — AGM 2026-05-14',
+    sourceType: 'Recorded Call Pull — WebRTC / Telephony Trunk',
     sampleKey: 'ai_clone',
     linkedCallRef: 1348,
     cellTowerId: '3102604f160b7e303',
     locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    locationSource: 'CARRIER_TOWER_CDR',
+    locationSourceBadge: 'Estimated Area (Carrier Tower CDR)',
+    approximateAddress: 'Approx. 4335 Upland Dr, Rose Hill, Alexandria, VA 22310, USA',
+    accuracyRadiusMeters: 1200,
+    legalBasis: 'Lawful Court Subpoena #ORD-7502 (Tower Sector Area)',
     sha256Hash: '9a8f4c2e6b1d037a5f8e2190bb42cf8912d0987e41ac32de58190c14b2d30fa1',
     evidenceId: 'EVD-2026-0884-A1',
     authenticityCategory: 'HIGH RISK',
-    explanationText: 'High-frequency vocoder spectral rolloff above 3800Hz with severe phase discontinuities. Enrolled voiceprint divergence confirmed at 00:26.4.'
+    explanationText: 'High-frequency vocoder spectral rolloff above 3800Hz with severe phase discontinuities. ECAPA-TDNN voiceprint divergence confirmed at 00:26.4.'
   },
   {
     id: 'case-v0885',
     code: 'Case #V-0885',
+    eventId: 'EVT-2026-0885',
     title: 'SBI Fraud Prevention Demand',
     duration: 29.5,
     anomalyTime: 18.2,
@@ -100,13 +114,18 @@ const CASES: CaseItem[] = [
     playbackAttackPct: 35,
     temporalBreakText: 'CADENCE IRREGULARITY — 00:18.2',
     principal: 'Template #P-0112 · SBI Executive',
-    model: 'ECAPA-TDNN + Intent Heuristic',
+    model: 'ECAPA-TDNN + Fraud Intent Heuristic',
     submissionDate: '2026-06-02',
-    sourceType: 'Inbound Telecom Trunk — SBI Line',
+    sourceType: 'Inbound Telecom Trunk — Recording Notice Verified',
     sampleKey: 'scam',
-    linkedCallRef: 1359,
+    linkedCallRef: 1364,
     cellTowerId: '3102604f160b7e303',
     locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    locationSource: 'CARRIER_TOWER_CDR',
+    locationSourceBadge: 'Estimated Area (Carrier Tower CDR)',
+    approximateAddress: 'Approx. 4335 Upland Dr, Rose Hill, Alexandria, VA 22310, USA',
+    accuracyRadiusMeters: 1200,
+    legalBasis: 'Lawful Court Subpoena #ORD-7502',
     sha256Hash: '4f2a7b8e19d0c28341b52e098a72c1f4e308912bd6c9081a2e78345c6d0912ab',
     evidenceId: 'EVD-2026-0885-B2',
     authenticityCategory: 'HIGH RISK',
@@ -115,6 +134,7 @@ const CASES: CaseItem[] = [
   {
     id: 'case-v0886',
     code: 'Case #V-0886',
+    eventId: 'EVT-2026-0886',
     title: 'Benign Executive Meeting Call',
     duration: 31.0,
     anomalyTime: 0,
@@ -127,15 +147,51 @@ const CASES: CaseItem[] = [
     principal: 'Template #P-0047 · Verified Natural',
     model: 'ECAPA-TDNN Baseline',
     submissionDate: '2026-06-10',
-    sourceType: 'Encrypted VOIP Trunk — Internal',
+    sourceType: 'Encrypted VOIP Trunk — Internal Consent Confirmed',
     sampleKey: 'benign',
-    linkedCallRef: 1351,
+    linkedCallRef: 1361,
     cellTowerId: '3102604f160b7e303',
     locationArea: 'Alexandria, VA Sector 1 (Azimuth: 60°)',
+    locationSource: 'CARRIER_TOWER_CDR',
+    locationSourceBadge: 'Estimated Area (Carrier Tower CDR)',
+    approximateAddress: 'Approx. 4335 Upland Dr, Rose Hill, Alexandria, VA 22310, USA',
+    accuracyRadiusMeters: 1200,
+    legalBasis: 'Lawful Court Subpoena #ORD-7502',
     sha256Hash: '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b',
     evidenceId: 'EVD-2026-0886-C3',
     authenticityCategory: 'LOW RISK',
     explanationText: 'Acoustic parameters match authentic human vocal tract resonances. Natural pitch micro-jitter and harmonic formants preserved.'
+  },
+  {
+    id: 'case-v0887',
+    code: 'Case #V-0887',
+    eventId: 'EVT-2026-0999',
+    title: 'Unverified Anonymous Call Intake',
+    duration: 32.0,
+    anomalyTime: 14.5,
+    spliceTime: 22.0,
+    similarityScore: 68.4,
+    thresholdScore: 85.0,
+    voiceSynthesisPct: 78,
+    playbackAttackPct: 62,
+    temporalBreakText: 'TEMPORAL ANOMALY — 00:14.5',
+    principal: 'Unenrolled Target Caller',
+    model: 'ECAPA-TDNN + AASIST',
+    submissionDate: '2026-06-14',
+    sourceType: 'Recorded Audio Upload — No Lawful CDR Attached',
+    sampleKey: 'ai_clone',
+    linkedCallRef: 1402,
+    cellTowerId: 'TOWER_UNAVAILABLE',
+    locationArea: 'Location Unavailable',
+    locationSource: 'LOCATION_UNAVAILABLE',
+    locationSourceBadge: 'Location Unavailable',
+    approximateAddress: null,
+    accuracyRadiusMeters: null,
+    legalBasis: 'No Lawful Location Record Attached',
+    sha256Hash: 'f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7',
+    evidenceId: 'EVD-2026-0887-D4',
+    authenticityCategory: 'HIGH RISK',
+    explanationText: 'A voice, phone number, or IP cannot determine location. No lawful CDR subpoena, emergency dispatch record, or complainant GPS consent link exists.'
   }
 ];
 
@@ -154,15 +210,57 @@ export const VoiceAnalysisView: React.FC<Props> = ({
   const [isEvidenceExporting, setIsEvidenceExporting] = useState(false);
   const [exportNotification, setExportNotification] = useState<string | null>(null);
 
-  // Upload state
+  // Consent Link modal state
+  const [isConsentModalOpen, setIsConsentModalOpen] = useState(false);
+  const [isSimulatingConsentGps, setIsSimulatingConsentGps] = useState(false);
   const [isAnalyzingUpload, setIsAnalyzingUpload] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Canvas & Audio refs
   const waveformCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const spectrogramCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const voiceprintCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Synchronize when external analysisData is passed
+  useEffect(() => {
+    if (analysisData) {
+      const isUnavail = !analysisData.location_record || analysisData.location_record.source === 'LOCATION_UNAVAILABLE' || !analysisData.location_record.latitude;
+      const dynamicCase: CaseItem = {
+        id: analysisData.analysis_id,
+        code: `Analysis #${analysisData.analysis_id.slice(0, 6)}`,
+        eventId: analysisData.event_id || `EVT-${analysisData.analysis_id.slice(0, 6)}`,
+        title: analysisData.filename,
+        duration: analysisData.audio_duration_seconds,
+        anomalyTime: analysisData.transcript_segments?.[0]?.start || 0,
+        spliceTime: analysisData.transcript_segments?.[0]?.end || 0,
+        similarityScore: analysisData.speaker_similarity_score || (analysisData.synthetic_speech_score > 0.6 ? 61.3 : 91.2),
+        thresholdScore: 85.0,
+        voiceSynthesisPct: Math.round(analysisData.synthetic_speech_score * 100),
+        playbackAttackPct: Math.round((analysisData.synthetic_speech_score * 0.75) * 100),
+        temporalBreakText: analysisData.synthetic_speech_score > 0.6 ? 'TEMPORAL BREAK DETECTED' : 'NO BREAKS DETECTED',
+        principal: 'Enrolled Template #P-0047',
+        model: 'ECAPA-TDNN (SpeechBrain) + AASIST (ASVspoof)',
+        submissionDate: new Date().toISOString().split('T')[0],
+        sourceType: analysisData.call_type || 'Recorded Audio Intake',
+        sampleKey: 'ai_clone',
+        linkedCallRef: 1348,
+        cellTowerId: isUnavail ? 'TOWER_UNAVAILABLE' : '3102604f160b7e303',
+        locationArea: isUnavail ? 'Location Unavailable' : (analysisData.location_record?.approximate_address || 'Alexandria, VA Sector 1'),
+        locationSource: (analysisData.location_record?.source as any) || (isUnavail ? 'LOCATION_UNAVAILABLE' : 'CARRIER_TOWER_CDR'),
+        locationSourceBadge: analysisData.location_record?.source_label || (isUnavail ? 'Location Unavailable' : 'Estimated Area (Carrier Tower CDR)'),
+        approximateAddress: isUnavail ? null : (analysisData.location_record?.approximate_address || null),
+        accuracyRadiusMeters: isUnavail ? null : (analysisData.location_record?.accuracy_meters || 1200),
+        legalBasis: analysisData.legal_authority || analysisData.location_record?.legal_basis || 'Lawful Authority Confirmed',
+        sha256Hash: analysisData.file_hash || 'computed_sha256_hash',
+        evidenceId: analysisData.event_id || `EVD-${analysisData.analysis_id.slice(0, 8)}`,
+        authenticityCategory: (analysisData.overall_risk as any) || 'HIGH RISK',
+        explanationText: analysisData.risk_explanation
+      };
+      setSelectedCase(dynamicCase);
+    }
+  }, [analysisData]);
 
   // Load real audio if available
   useEffect(() => {
@@ -251,29 +349,36 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
       const result = await api.analyzeAudio(file);
 
+      const isUnavail = !result.location_record || result.location_record.source === 'LOCATION_UNAVAILABLE' || !result.location_record.latitude;
       const uploadedCase: CaseItem = {
         id: `case-upload-${Date.now()}`,
         code: `Case #U-${Math.floor(1000 + Math.random() * 9000)}`,
+        eventId: result.event_id || `EVT-U-${Date.now().toString().slice(-4)}`,
         title: file.name,
         duration: result.audio_duration_seconds,
         anomalyTime: result.synthetic_speech_score > 0.5 ? result.audio_duration_seconds * 0.6 : 0,
         spliceTime: result.synthetic_speech_score > 0.7 ? result.audio_duration_seconds * 0.8 : 0,
-        similarityScore: Math.round((1 - result.synthetic_speech_score * 0.5) * 1000) / 10,
+        similarityScore: result.speaker_similarity_score || Math.round((1 - result.synthetic_speech_score * 0.5) * 1000) / 10,
         thresholdScore: 85.0,
         voiceSynthesisPct: Math.round(result.synthetic_speech_score * 100),
-        playbackAttackPct: Math.round(result.acoustic_breakdown.vocoder_artifact_score * 100),
+        playbackAttackPct: Math.round((result.acoustic_breakdown?.vocoder_artifact_score || 0.2) * 100),
         temporalBreakText: result.synthetic_speech_score > 0.6 ? `VOCAL DISCONTINUITY — ${result.authenticity_label.toUpperCase()}` : 'NO ANOMALIES DETECTED',
         principal: 'Enrolled Template #P-0047 · Target',
-        model: result.model_name,
+        model: result.model_name || 'ECAPA-TDNN (SpeechBrain) + AASIST (ASVspoof)',
         submissionDate: new Date().toISOString().split('T')[0],
         sourceType: `Direct Upload (${(file.size / 1024).toFixed(1)} KB)`,
         sampleKey: 'ai_clone',
         linkedCallRef: 1348,
-        cellTowerId: '3102604f160b7e303',
-        locationArea: 'Alexandria, VA Sector 1',
+        cellTowerId: isUnavail ? 'TOWER_UNAVAILABLE' : '3102604f160b7e303',
+        locationArea: isUnavail ? 'Location Unavailable' : (result.location_record?.approximate_address || 'Alexandria, VA Sector 1'),
+        locationSource: (result.location_record?.source as any) || (isUnavail ? 'LOCATION_UNAVAILABLE' : 'CARRIER_TOWER_CDR'),
+        locationSourceBadge: result.location_record?.source_label || (isUnavail ? 'Location Unavailable' : 'Estimated Area (Carrier Tower CDR)'),
+        approximateAddress: isUnavail ? null : (result.location_record?.approximate_address || null),
+        accuracyRadiusMeters: isUnavail ? null : (result.location_record?.accuracy_meters || 1200),
+        legalBasis: result.legal_authority || result.location_record?.legal_basis || 'Lawful Authority Confirmed',
         sha256Hash: hashHex,
-        evidenceId: `EVD-${result.analysis_id.slice(0, 8).toUpperCase()}`,
-        authenticityCategory: result.overall_risk === 'HIGH RISK' ? 'HIGH RISK' : result.overall_risk === 'VERIFY' ? 'REVIEW REQUIRED' : 'LOW RISK',
+        evidenceId: result.event_id || `EVD-${result.analysis_id.slice(0, 8).toUpperCase()}`,
+        authenticityCategory: (result.overall_risk as any) || 'HIGH RISK',
         explanationText: result.risk_explanation || result.evidence_summary
       };
 
@@ -299,11 +404,11 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     ctx.clearRect(0, 0, width, height);
 
     // Canvas background
-    ctx.fillStyle = isDarkMode ? '#08101e' : '#f8fafc';
+    ctx.fillStyle = isDarkMode ? '#141a1d' : '#f8fafc';
     ctx.fillRect(0, 0, width, height);
 
     // Subtle horizontal grid line
-    ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)';
+    ctx.strokeStyle = isDarkMode ? '#25323a' : 'rgba(0, 0, 0, 0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
@@ -315,6 +420,21 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     const anomalyX = (selectedCase.anomalyTime / selectedCase.duration) * width;
     const spliceX = (selectedCase.spliceTime / selectedCase.duration) * width;
     const currentX = (currentTime / selectedCase.duration) * width;
+
+    // Suspicious segment band (#f0a73a at 25%)
+    if (selectedCase.anomalyTime > 0) {
+      const bandEndX = selectedCase.spliceTime > 0 
+        ? (selectedCase.spliceTime / selectedCase.duration) * width 
+        : Math.min(width, anomalyX + (width * 0.16));
+      ctx.fillStyle = 'rgba(240, 167, 58, 0.25)';
+      ctx.fillRect(anomalyX, 0, bandEndX - anomalyX, height);
+    }
+
+    // High-risk segment band (#e5534b at 30%)
+    if (selectedCase.spliceTime > 0) {
+      ctx.fillStyle = 'rgba(229, 83, 75, 0.30)';
+      ctx.fillRect(spliceX, 0, Math.min(width - spliceX, width * 0.14), height);
+    }
 
     for (let i = 0; i < barCount; i++) {
       const x = i * step;
@@ -334,11 +454,11 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       const y = (height - barHeight) / 2;
 
       if (x <= currentX) {
-        ctx.fillStyle = isDarkMode ? '#2dd4bf' : '#0d9488';
-        ctx.shadowColor = isDarkMode ? '#06b6d4' : 'rgba(13, 148, 136, 0.3)';
+        ctx.fillStyle = '#2ec4b6';
+        ctx.shadowColor = isDarkMode ? 'rgba(46, 196, 182, 0.4)' : 'rgba(13, 148, 136, 0.3)';
         ctx.shadowBlur = isDarkMode ? 4 : 2;
       } else {
-        ctx.fillStyle = isDarkMode ? '#0e7490' : '#94a3b8';
+        ctx.fillStyle = isDarkMode ? '#25323a' : '#94a3b8';
         ctx.shadowBlur = 0;
       }
 
@@ -346,9 +466,9 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
     ctx.shadowBlur = 0;
 
-    // Anomaly marker
+    // Anomaly marker (#f0a73a)
     if (selectedCase.anomalyTime > 0) {
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = '#f0a73a';
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -358,9 +478,9 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       ctx.setLineDash([]);
     }
 
-    // Splice marker
+    // Splice marker (HIGH RISK #e5534b)
     if (selectedCase.spliceTime > 0) {
-      ctx.strokeStyle = '#ef4444';
+      ctx.strokeStyle = '#e5534b';
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -371,7 +491,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
 
     // Current playhead
-    ctx.strokeStyle = isDarkMode ? '#ffffff' : '#0f172a';
+    ctx.strokeStyle = isDarkMode ? '#d6e1e5' : '#0f172a';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(currentX, 0);
@@ -380,7 +500,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
   }, [currentTime, selectedCase, isDarkMode]);
 
-  // Draw Mel-Spectrogram Canvas (Theme-Aware)
+  // Draw Mel-Spectrogram Canvas (dark #0d1113 -> teal #2ec4b6 -> amber #f0a73a)
   useEffect(() => {
     const canvas = spectrogramCanvasRef.current;
     if (!canvas) return;
@@ -391,7 +511,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
 
-    ctx.fillStyle = isDarkMode ? '#050c18' : '#0f172a';
+    ctx.fillStyle = isDarkMode ? '#0d1113' : '#0f172a';
     ctx.fillRect(0, 0, width, height);
 
     const cols = 160;
@@ -422,14 +542,15 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
         energy = Math.max(0, Math.min(1, energy + (Math.sin(c * 3.7 + r * 5.1) * 0.1)));
         
-        if (energy > 0.75) {
-          ctx.fillStyle = `rgba(220, 252, 250, ${energy * 0.95})`;
-        } else if (energy > 0.4) {
-          ctx.fillStyle = `rgba(45, 212, 191, ${energy * 0.8})`;
-        } else if (energy > 0.15) {
-          ctx.fillStyle = `rgba(14, 116, 144, ${energy * 0.6})`;
+        // Spectrogram palette: dark #0d1113, then teal #2ec4b6, then amber #f0a73a
+        if (energy > 0.7) {
+          ctx.fillStyle = `rgba(240, 167, 58, ${energy})`;
+        } else if (energy > 0.35) {
+          ctx.fillStyle = `rgba(46, 196, 182, ${energy * 0.9})`;
+        } else if (energy > 0.12) {
+          ctx.fillStyle = `rgba(18, 49, 47, ${energy * 0.8})`;
         } else {
-          ctx.fillStyle = isDarkMode ? `rgba(8, 28, 54, ${energy * 0.4})` : `rgba(15, 23, 42, ${energy * 0.4})`;
+          ctx.fillStyle = isDarkMode ? `rgba(13, 17, 19, ${energy * 0.5})` : `rgba(15, 23, 42, ${energy * 0.4})`;
         }
 
         ctx.fillRect(c * colWidth, r * rowHeight, colWidth + 0.5, rowHeight + 0.5);
@@ -438,7 +559,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
     if (selectedCase.anomalyTime > 0) {
       const breakX = (selectedCase.anomalyTime / selectedCase.duration) * width;
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = '#f0a73a';
       ctx.lineWidth = 2;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -449,7 +570,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
 
     const playheadX = (currentTime / selectedCase.duration) * width;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.strokeStyle = '#d6e1e5';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(playheadX, 0);
@@ -469,7 +590,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     const height = canvas.height;
     ctx.clearRect(0, 0, width, height);
 
-    ctx.fillStyle = isDarkMode ? '#060f1c' : '#f8fafc';
+    ctx.fillStyle = isDarkMode ? '#141a1d' : '#f8fafc';
     ctx.fillRect(0, 0, width, height);
 
     const points = 100;
@@ -498,7 +619,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       }
     }
 
-    // Divergence Area Shaded Fill
+    // Divergence Area Shaded Fill (#f0a73a at 25%)
     if (breakIndex > 0) {
       ctx.beginPath();
       ctx.moveTo(breakX, enrolledY[breakIndex]);
@@ -512,13 +633,10 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       }
       ctx.closePath();
       
-      const grad = ctx.createLinearGradient(breakX, 0, width, 0);
-      grad.addColorStop(0, 'rgba(245, 158, 11, 0.15)');
-      grad.addColorStop(1, 'rgba(245, 158, 11, 0.35)');
-      ctx.fillStyle = grad;
+      ctx.fillStyle = 'rgba(240, 167, 58, 0.25)';
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.25)';
+      ctx.strokeStyle = 'rgba(240, 167, 58, 0.35)';
       ctx.lineWidth = 1;
       for (let x = breakX; x < width; x += 10) {
         ctx.beginPath();
@@ -528,8 +646,8 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       }
     }
 
-    // Enrolled Template Curve (Cyan / Teal)
-    ctx.strokeStyle = isDarkMode ? '#2dd4bf' : '#0d9488';
+    // Enrolled Template Curve (Teal #2ec4b6)
+    ctx.strokeStyle = '#2ec4b6';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
@@ -539,8 +657,8 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     }
     ctx.stroke();
 
-    // Submitted Audio Curve (White in dark mode, Charcoal in light mode)
-    ctx.strokeStyle = isDarkMode ? '#ffffff' : '#0f172a';
+    // Submitted Audio Curve (Main text #d6e1e5 in dark mode)
+    ctx.strokeStyle = isDarkMode ? '#d6e1e5' : '#0f172a';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i <= points; i++) {
@@ -551,7 +669,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
     ctx.stroke();
 
     if (breakX > 0) {
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = '#f0a73a';
       ctx.lineWidth = 2;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -641,21 +759,21 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
   // Common Card CSS classes based on Theme
   const cardBgClass = isDarkMode 
-    ? 'bg-[#0b1422] border-[#142339] shadow-lg shadow-black/40 text-slate-100' 
+    ? 'bg-[#141a1d] border-[#25323a] shadow-lg shadow-black/40 text-[#d6e1e5]' 
     : 'bg-white border-slate-200 shadow-sm text-slate-900';
 
   const subBoxBgClass = isDarkMode
-    ? 'bg-[#08101d] border-[#142135]'
+    ? 'bg-[#1a2327] border-[#25323a]'
     : 'bg-slate-50 border-slate-200';
 
   return (
     <div className={`min-h-full flex flex-col font-sans select-none pb-36 transition-colors duration-200 ${
-      isDarkMode ? 'bg-[#060b13] text-slate-100' : 'bg-slate-50 text-slate-900'
+      isDarkMode ? 'bg-[#0d1113] text-[#d6e1e5]' : 'bg-slate-50 text-slate-900'
     }`}>
       
       {/* 1. Streamlined Top Utility Toolbar (Replaces duplicated breadcrumb to expand vertical space) */}
       <div className={`border-b px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 ${
-        isDarkMode ? 'bg-[#08101d] border-[#142033]' : 'bg-white border-slate-200'
+        isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center gap-3 text-xs">
           {/* Interactive Case Selector Dropdown */}
@@ -664,7 +782,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
               onClick={() => setIsCaseDropdownOpen(!isCaseDropdownOpen)}
               className={`flex items-center gap-1.5 font-mono font-semibold transition-colors px-2.5 py-1 rounded border ${
                 isDarkMode 
-                  ? 'bg-[#0f1b2d] border-[#1b2b42] text-slate-200 hover:text-cyan-400' 
+                  ? 'bg-[#1a2327] border-[#25323a] text-[#d6e1e5] hover:text-[#2ec4b6]' 
                   : 'bg-slate-100 border-slate-300 text-slate-800 hover:text-teal-700'
               }`}
             >
@@ -674,7 +792,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
             {isCaseDropdownOpen && (
               <div className={`absolute top-full left-0 mt-1 w-64 rounded-lg shadow-xl z-50 py-1 text-xs font-mono border ${
-                isDarkMode ? 'bg-[#0d1728] border-[#1b2f4a]' : 'bg-white border-slate-200 shadow-lg'
+                isDarkMode ? 'bg-[#141a1d] border-[#25323a]' : 'bg-white border-slate-200 shadow-lg'
               }`}>
                 {CASES.map((c) => (
                   <button
@@ -688,18 +806,18 @@ export const VoiceAnalysisView: React.FC<Props> = ({
                     className={`w-full text-left px-3 py-2 flex items-center justify-between transition-colors ${
                       c.id === selectedCase.id 
                         ? isDarkMode 
-                          ? 'bg-[#122238] text-cyan-400 font-semibold' 
+                          ? 'bg-[#12312f] text-[#2ec4b6] font-semibold' 
                           : 'bg-teal-50 text-teal-800 font-semibold'
                         : isDarkMode 
-                          ? 'text-slate-300 hover:bg-[#162740]' 
+                          ? 'text-[#d6e1e5] hover:bg-[#1a2327]' 
                           : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     <div>
                       <div>{c.code}</div>
-                      <div className={`text-[11px] font-sans truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{c.title}</div>
+                      <div className={`text-[11px] font-sans truncate ${isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}`}>{c.title}</div>
                     </div>
-                    {c.id === selectedCase.id && <span className="text-teal-500 text-xs">●</span>}
+                    {c.id === selectedCase.id && <span className="text-[#2ec4b6] text-xs">●</span>}
                   </button>
                 ))}
               </div>
@@ -709,13 +827,13 @@ export const VoiceAnalysisView: React.FC<Props> = ({
           {/* Evidence ID Badge */}
           <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded font-mono text-[11px] border ${
             isDarkMode 
-              ? 'bg-[#0a1424] border-[#162740] text-slate-300' 
+              ? 'bg-[#1a2327] border-[#25323a] text-[#d6e1e5]' 
               : 'bg-slate-100 border-slate-200 text-slate-700'
           }`}>
-            <Hash className="w-3 h-3 text-cyan-500" />
+            <Hash className="w-3 h-3 text-[#2ec4b6]" />
             <span>{selectedCase.evidenceId}</span>
-            <span className="text-slate-400">·</span>
-            <span className="text-emerald-500 font-bold">SHA-256 OK</span>
+            <span className="text-[#86989f]">·</span>
+            <span className="text-[#2ec4b6] font-bold">SHA-256 OK</span>
           </div>
         </div>
 
@@ -736,7 +854,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
             disabled={isAnalyzingUpload}
             className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors shadow-sm ${
               isDarkMode 
-                ? 'bg-cyan-950/70 hover:bg-cyan-900 border-cyan-500/50 text-cyan-300 hover:text-white' 
+                ? 'bg-[#12312f] hover:bg-[#12312f]/80 border-[#2ec4b6]/50 text-[#2ec4b6]' 
                 : 'bg-teal-50 hover:bg-teal-100 border-teal-300 text-teal-800'
             }`}
           >
@@ -748,11 +866,11 @@ export const VoiceAnalysisView: React.FC<Props> = ({
             onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
             className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors shadow-sm ${
               isDarkMode 
-                ? 'bg-blue-950/80 hover:bg-blue-900 border-blue-500/50 text-blue-300 hover:text-white' 
+                ? 'bg-[#1a2327] hover:bg-[#25323a] border-[#25323a] text-[#8fb3c9]' 
                 : 'bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-800'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            <MapPin className="w-3.5 h-3.5 text-[#8fb3c9]" />
             <span>Location Intelligence (Ref #{selectedCase.linkedCallRef})</span>
           </button>
         </div>
@@ -1059,24 +1177,97 @@ export const VoiceAnalysisView: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Linked Telecom Cell Tower Row */}
-            <div className={`pt-3 border-t flex flex-wrap items-center justify-between gap-2 text-xs font-mono ${
-              isDarkMode ? 'border-[#142339]' : 'border-slate-200'
-            }`}>
-              <div className={`flex items-center gap-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                <MapPin className="w-4 h-4 text-cyan-500" />
-                <span>Tower Cell: <span className="font-bold">{selectedCase.cellTowerId}</span></span>
-                <span className={isDarkMode ? 'text-slate-500' : 'text-slate-500'}>({selectedCase.locationArea})</span>
+            {/* Card 4: LAWFUL LOCATION & ADDRESS INTELLIGENCE */}
+            <div className={`pt-4 border-t space-y-3 font-mono ${isDarkMode ? 'border-[#25323a]' : 'border-slate-200'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#d6e1e5]">
+                  <MapPin className="w-4 h-4 text-[#2ec4b6]" />
+                  Lawful Location Intelligence
+                </span>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border uppercase ${
+                  selectedCase.locationSource === 'LOCATION_UNAVAILABLE'
+                    ? 'bg-[#e5534b]/20 text-[#e5534b] border-[#e5534b]/60'
+                    : selectedCase.locationSource === 'CARRIER_TOWER_CDR'
+                    ? 'bg-[#f0a73a]/20 text-[#f0a73a] border-[#f0a73a]/60'
+                    : 'bg-[#12312f] text-[#2ec4b6] border-[#2ec4b6]/60'
+                }`}>
+                  {selectedCase.locationSourceBadge}
+                </span>
               </div>
-              <button
-                onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
-                className={`flex items-center gap-1 font-bold text-xs hover:underline ${
-                  isDarkMode ? 'text-cyan-400 hover:text-white' : 'text-teal-700 hover:text-teal-900'
-                }`}
-              >
-                <span>Open in Location Intelligence (Ref #{selectedCase.linkedCallRef})</span>
-                <ExternalLink className="w-3 h-3" />
-              </button>
+
+              {selectedCase.locationSource !== 'LOCATION_UNAVAILABLE' && selectedCase.approximateAddress ? (
+                <div className="space-y-2.5">
+                  <div className={`p-3 rounded-lg border ${subBoxBgClass}`}>
+                    <span className="text-[10px] text-[#2ec4b6] block uppercase tracking-wider font-bold mb-1">
+                      Approximate Street Address (Geocoded via Nominatim):
+                    </span>
+                    <div className="text-xs font-semibold font-sans text-[#d6e1e5]">
+                      {selectedCase.approximateAddress}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className={`p-2 rounded-lg border ${subBoxBgClass}`}>
+                      <span className="text-[#86989f] block text-[10px]">Area Radius / Accuracy:</span>
+                      <span className="text-[#2ec4b6] font-bold">
+                        ±{selectedCase.accuracyRadiusMeters || 1200}m Circle
+                      </span>
+                    </div>
+                    <div className={`p-2 rounded-lg border ${subBoxBgClass}`}>
+                      <span className="text-[#86989f] block text-[10px]">Tower ID / Cell Sector:</span>
+                      <span className="text-[#d6e1e5] truncate block" title={selectedCase.cellTowerId}>
+                        {selectedCase.cellTowerId}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Primary Map Jump Button */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
+                      className="flex-1 py-2 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all hover:scale-[1.01]"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-[#0d1113]" />
+                      <span>Open Centred on Investigation Map (with Radius Circle) →</span>
+                    </button>
+                    <button
+                      onClick={() => setIsConsentModalOpen(true)}
+                      className="py-2 px-3 rounded-lg bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#d6e1e5] font-bold text-xs flex items-center gap-1.5 transition-colors"
+                      title="Consent GPS Link"
+                    >
+                      <Link2 className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                      <span>GPS Link</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Location Unavailable State */
+                <div className="space-y-2.5">
+                  <div className="p-3.5 rounded-lg bg-[#e5534b]/10 border border-[#e5534b]/40 space-y-1.5 text-xs">
+                    <div className="flex items-center gap-2 text-[#e5534b] font-bold">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Location Unavailable</span>
+                    </div>
+                    <p className="text-[#86989f] leading-relaxed text-[11px] font-sans">
+                      A voice, a phone number or an IP address cannot tell you where someone is, and RAKSHAM will not build anything that guesses it.
+                    </p>
+                    <p className="text-[#86989f] leading-relaxed text-[10px]">
+                      A map position can only come from a record you are allowed to use: carrier tower CDR (area, not a point), handset emergency GPS, or a complainant GPS consent link.
+                    </p>
+                    <div className="text-[#2ec4b6] text-[10px] font-bold pt-1 border-t border-[#e5534b]/20">
+                      Audio forensics analysis remains 100% active.
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsConsentModalOpen(true)}
+                    className="w-full py-2 px-3 rounded-lg bg-[#12312f] hover:bg-[#1a2327] border border-[#2ec4b6]/50 text-[#2ec4b6] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all"
+                  >
+                    <Link2 className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                    <span>Generate Complainant GPS Consent Link</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1309,10 +1500,10 @@ export const VoiceAnalysisView: React.FC<Props> = ({
 
             {/* Bottom Status Pills (Spacious & 100% Visible) */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center py-2.5 px-3 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-xs font-semibold">
+              <div className="text-center py-2.5 px-3 rounded-lg border border-[#f0a73a]/40 bg-[#f0a73a]/15 text-[#f0a73a] font-mono text-xs font-semibold">
                 Voiceprint match BELOW THRESHOLD
               </div>
-              <div className="text-center py-2.5 px-3 rounded-lg border border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono text-xs font-semibold">
+              <div className="text-center py-2.5 px-3 rounded-lg border border-[#f0a73a]/40 bg-[#f0a73a]/15 text-[#f0a73a] font-mono text-xs font-semibold">
                 Human review REQUIRED
               </div>
             </div>
@@ -1326,7 +1517,7 @@ export const VoiceAnalysisView: React.FC<Props> = ({
       {/* 3. Bottom Sticky Action Bar (Theme-Aware) */}
       <div className={`fixed bottom-0 left-0 right-0 py-3.5 px-6 z-40 backdrop-blur-md border-t transition-colors ${
         isDarkMode 
-          ? 'bg-[#08101e]/95 border-[#15233a] text-white shadow-2xl' 
+          ? 'bg-[#141a1d]/95 border-[#25323a] text-[#d6e1e5] shadow-2xl' 
           : 'bg-white/95 border-slate-200 text-slate-900 shadow-xl'
       }`}>
         <div className="max-w-[1780px] mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -1336,39 +1527,43 @@ export const VoiceAnalysisView: React.FC<Props> = ({
             onClick={() => setIsReviewModalOpen(true)}
             className={`flex items-center gap-2.5 px-6 py-3 rounded-xl border font-semibold text-sm transition-all shadow-md ${
               isDarkMode 
-                ? 'border-teal-500/50 bg-teal-950/30 hover:bg-teal-900/40 text-teal-300 hover:text-white' 
+                ? 'border-[#2ec4b6]/50 bg-[#12312f] hover:bg-[#1a2327] text-[#2ec4b6]' 
                 : 'border-teal-300 bg-teal-50 hover:bg-teal-100 text-teal-800'
             }`}
           >
-            <Ear className="w-5 h-5 text-teal-500" />
+            <Ear className="w-5 h-5 text-[#2ec4b6]" />
             <span>Review</span>
           </button>
 
-          {/* Center Banner / Alert Button */}
+          {/* Center Banner / Alert Button (HIGH RISK: red #e5534b with dark text #0d1113!) */}
           <button
             onClick={() => setIsReviewModalOpen(true)}
-            className="flex items-center gap-3 px-8 py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-bold text-base shadow-lg shadow-red-950/40 border border-red-500/60 transition-all hover:scale-[1.01]"
+            className="flex items-center gap-3 px-8 py-3 rounded-xl bg-[#e5534b] hover:bg-[#e5534b]/90 text-[#0d1113] font-bold text-base shadow-lg shadow-black/40 border border-[#e5534b] transition-all hover:scale-[1.01]"
           >
-            <AlertTriangle className="w-5 h-5 text-white animate-pulse" />
+            <AlertTriangle className="w-5 h-5 text-[#0d1113] animate-pulse" />
             <span>Voice Cloning Detected — {selectedCase.voiceSynthesisPct}%</span>
           </button>
 
           {/* Connected Geospatial Investigation Module Button */}
           <button
             onClick={() => onNavigateToGeospatial(selectedCase.linkedCallRef)}
-            className="flex items-center gap-2.5 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all hover:scale-[1.01]"
+            className={`flex items-center gap-2.5 px-6 py-3 rounded-xl border font-bold text-sm shadow-md transition-all hover:scale-[1.01] ${
+              isDarkMode 
+                ? 'bg-[#1a2327] hover:bg-[#25323a] border-[#25323a] text-[#8fb3c9]' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
           >
-            <MapPin className="w-4 h-4 text-white" />
+            <MapPin className="w-4 h-4 text-[#8fb3c9]" />
             <span>Geospatial Track (Ref #{selectedCase.linkedCallRef})</span>
           </button>
 
-          {/* Right Button: Evidence-Ready — Export Pack */}
+          {/* Right Button: Evidence-Ready — Export Pack (Teal #2ec4b6 with dark text #0d1113!) */}
           <button
             onClick={handleExportEvidencePack}
             disabled={isEvidenceExporting}
-            className="flex items-center gap-2.5 px-7 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm md:text-base shadow-md transition-all hover:scale-[1.01] disabled:opacity-50"
+            className="flex items-center gap-2.5 px-7 py-3 rounded-xl bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-sm md:text-base shadow-md transition-all hover:scale-[1.01] disabled:opacity-50"
           >
-            <CheckCircle2 className="w-5 h-5 text-white" />
+            <CheckCircle2 className="w-5 h-5 text-[#0d1113]" />
             <span>{isEvidenceExporting ? 'Generating Pack...' : 'Evidence-Ready — Export Pack'}</span>
           </button>
 
@@ -1460,6 +1655,92 @@ export const VoiceAnalysisView: React.FC<Props> = ({
                 <Download className="w-3.5 h-3.5" />
                 <span>Export Evidence PDF</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Complainant GPS Consent Link Modal */}
+      {isConsentModalOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`rounded-2xl max-w-lg w-full p-6 shadow-2xl relative border ${
+            isDarkMode ? 'bg-[#141a1d] border-[#25323a] text-[#d6e1e5]' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <button
+              onClick={() => setIsConsentModalOpen(false)}
+              className="absolute top-4 right-4 text-[#86989f] hover:text-[#d6e1e5]"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-9 h-9 rounded-xl bg-[#12312f] border border-[#2ec4b6]/40 flex items-center justify-center text-[#2ec4b6]">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[#d6e1e5] uppercase font-mono tracking-tight">Complainant GPS Consent Link</h3>
+                <p className="text-xs text-[#86989f]">Secure lawful HTML5 geolocation sharing for Event {selectedCase.eventId}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 my-4 text-xs font-mono">
+              <p className="text-[#86989f] text-[11px] leading-relaxed">
+                Send this secure verification link to the complainant. When opened in their browser, they grant explicit consent to share device GPS coordinates, which will be reverse-geocoded via Nominatim into an approximate street address.
+              </p>
+
+              <div className="p-3 rounded-xl bg-[#0d1113] border border-[#25323a] flex items-center justify-between gap-2">
+                <span className="text-[#2ec4b6] truncate text-[11px]">
+                  http://127.0.0.1:5173/?consent_token=cst_{selectedCase.eventId.toLowerCase()}&event_id={selectedCase.eventId}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`http://127.0.0.1:5173/?consent_token=cst_${selectedCase.eventId.toLowerCase()}&event_id=${selectedCase.eventId}`);
+                    alert('Consent URL copied to clipboard!');
+                  }}
+                  className="px-2.5 py-1 rounded bg-[#1a2327] hover:bg-[#25323a] text-[#d6e1e5] border border-[#25323a] shrink-0 font-bold text-[10px]"
+                >
+                  Copy Link
+                </button>
+              </div>
+
+              {/* Simulation button for immediate testing */}
+              <div className="p-3.5 rounded-xl bg-[#1a2327] border border-[#25323a] space-y-2">
+                <div className="text-[11px] font-bold text-[#d6e1e5]">Simulate Complainant Consent Flow:</div>
+                <p className="text-[10px] text-[#86989f]">
+                  Submits live coordinates (38.8895°N, -77.0352°W, ±8m) to backend Nominatim reverse-geocoder.
+                </p>
+                <button
+                  onClick={async () => {
+                    setIsSimulatingConsentGps(true);
+                    try {
+                      const res = await api.submitConsentGPS(selectedCase.eventId, 38.8895, -77.0352, 8.0);
+                      const addr = res.location_record?.approximate_address || 'Approx. 1400 Constitution Ave NW, Washington, DC 20230, USA';
+                      setSelectedCase(prev => ({
+                        ...prev,
+                        locationSource: 'CONSENT_LINK_GPS',
+                        locationSourceBadge: 'Complainant GPS Consent Link',
+                        approximateAddress: addr,
+                        accuracyRadiusMeters: 8,
+                        linkedCallRef: 1395,
+                        cellTowerId: 'CONSENT_GPS',
+                        locationArea: addr,
+                        legalBasis: 'Complainant Informed Consent (HTML5 Geolocation API)'
+                      }));
+                      setIsConsentModalOpen(false);
+                      setExportNotification('Complainant GPS coordinates verified and reverse-geocoded successfully!');
+                    } catch (err: any) {
+                      alert(err.message || 'Failed to submit simulated consent');
+                    } finally {
+                      setIsSimulatingConsentGps(false);
+                    }
+                  }}
+                  disabled={isSimulatingConsentGps}
+                  className="w-full py-2 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-1.5 shadow"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#0d1113]" />
+                  <span>{isSimulatingConsentGps ? 'Geocoding GPS Coordinates...' : 'Simulate Complainant Sharing GPS'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

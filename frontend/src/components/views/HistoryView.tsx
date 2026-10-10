@@ -52,11 +52,11 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <History className="w-5 h-5 text-accent-electric" />
+          <h2 className="text-xl font-bold text-[#d6e1e5] flex items-center gap-2">
+            <History className="w-5 h-5 text-[#2ec4b6]" />
             Analysis History & Audit Log
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#86989f] mt-1">
             Persisted forensic records stored in local SQLite database
           </p>
         </div>
@@ -64,20 +64,20 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
         {/* Search & Filter */}
         <div className="flex items-center gap-3">
           <form onSubmit={handleSearchSubmit} className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-[#86989f] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search filename..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-bg-card rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 border border-border-subtle focus:outline-none focus:border-accent-blue w-48 placeholder:text-slate-400"
+              className="bg-[#141a1d] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#d6e1e5] border border-[#25323a] focus:outline-none focus:border-[#2ec4b6] w-48 placeholder:text-[#86989f]"
             />
           </form>
 
           <select
             value={riskFilter}
             onChange={(e) => setRiskFilter(e.target.value)}
-            className="bg-bg-card rounded-xl px-3 py-1.5 text-xs text-slate-200 border border-border-subtle focus:outline-none focus:border-accent-blue"
+            className="bg-[#141a1d] rounded-xl px-3 py-1.5 text-xs text-[#d6e1e5] border border-[#25323a] focus:outline-none focus:border-[#2ec4b6]"
           >
             <option value="ALL">All Risk Tiers</option>
             <option value="HIGH RISK">High Risk</option>
@@ -88,16 +88,16 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
       </div>
 
       {/* History Table */}
-      <div className="bg-bg-card rounded-2xl border border-border-subtle shadow-md overflow-hidden">
+      <div className="bg-[#141a1d] rounded-2xl border border-[#25323a] shadow-md overflow-hidden">
         {loading ? (
-          <div className="py-12 text-center text-slate-400">
-            <div className="animate-spin w-6 h-6 border-2 border-accent-blue border-t-transparent rounded-full mx-auto mb-2"></div>
+          <div className="py-12 text-center text-[#86989f]">
+            <div className="animate-spin w-6 h-6 border-2 border-[#2ec4b6] border-t-transparent rounded-full mx-auto mb-2"></div>
             <p className="text-xs">Loading historical records...</p>
           </div>
         ) : historyItems.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-300">
-              <thead className="bg-bg-deep text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-border-subtle">
+            <table className="w-full text-left text-xs text-[#d6e1e5]">
+              <thead className="bg-[#1a2327] text-[11px] font-bold text-[#86989f] uppercase tracking-wider border-b border-[#25323a]">
                 <tr>
                   <th className="py-3 px-4">Recording</th>
                   <th className="py-3 px-4">Synthetic Score</th>
@@ -107,38 +107,38 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle/50">
+              <tbody className="divide-y divide-[#25323a]">
                 {historyItems.map((item) => {
                   const isHigh = item.overall_risk === 'HIGH RISK';
                   const isVerify = item.overall_risk === 'VERIFY';
                   const badgeClass = isHigh
-                    ? 'bg-rose-950/60 text-rose-400 border-rose-800/40'
+                    ? 'bg-[#e5534b]/20 text-[#e5534b] border-[#e5534b]/50'
                     : isVerify
-                    ? 'bg-amber-950/60 text-amber-400 border-amber-800/40'
-                    : 'bg-emerald-950/60 text-emerald-400 border-emerald-800/40';
+                    ? 'bg-[#f0a73a]/20 text-[#f0a73a] border-[#f0a73a]/50'
+                    : 'bg-[#12312f] text-[#2ec4b6] border-[#2ec4b6]/50';
 
                   const RiskIcon = isHigh ? ShieldAlert : isVerify ? AlertTriangle : ShieldCheck;
 
                   return (
-                    <tr key={item.analysis_id} className="hover:bg-bg-surface/50 transition-colors">
+                    <tr key={item.analysis_id} className="hover:bg-[#1a2327]/60 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-white truncate max-w-[200px]">
+                        <div className="font-semibold text-[#d6e1e5] truncate max-w-[200px]">
                           {item.filename}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
+                        <div className="text-[10px] text-[#86989f] font-mono">
                           {item.audio_duration_seconds.toFixed(1)}s • ID: {item.analysis_id.slice(0, 8)}
                         </div>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <div className="font-mono font-bold text-slate-200">
+                        <div className="font-mono font-bold text-[#d6e1e5]">
                           {(item.synthetic_speech_score * 100).toFixed(1)}%
                         </div>
-                        <div className="text-[10px] text-slate-400">{item.authenticity_label}</div>
+                        <div className="text-[10px] text-[#86989f]">{item.authenticity_label}</div>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="font-mono text-slate-200">
+                        <span className="font-mono text-[#d6e1e5]">
                           {item.scam_indicators_count} Flags
                         </span>
                       </td>
@@ -150,7 +150,7 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">
+                      <td className="py-3.5 px-4 font-mono text-[11px] text-[#86989f]">
                         {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </td>
 
@@ -158,21 +158,21 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => onLoadAnalysis(item.analysis_id)}
-                            className="p-1.5 rounded-lg bg-accent-blue/15 hover:bg-accent-blue text-accent-electric hover:text-white border border-accent-blue/30 transition-colors"
+                            className="p-1.5 rounded-lg bg-[#12312f] hover:bg-[#2ec4b6] text-[#2ec4b6] hover:text-[#0d1113] border border-[#2ec4b6]/50 transition-colors"
                             title="Open in Dashboard"
                           >
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDownloadPdf(item.analysis_id, item.filename)}
-                            className="p-1.5 rounded-lg bg-bg-surface hover:bg-bg-cardHover text-slate-300 hover:text-white border border-border-subtle transition-colors"
+                            className="p-1.5 rounded-lg bg-[#1a2327] hover:bg-[#25323a] text-[#d6e1e5] border border-[#25323a] transition-colors"
                             title="Export PDF Report"
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(item.analysis_id)}
-                            className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 border border-rose-800/40 transition-colors"
+                            className="p-1.5 rounded-lg bg-[#1a2327] hover:bg-[#e5534b]/20 text-[#86989f] hover:text-[#e5534b] border border-[#25323a] hover:border-[#e5534b]/50 transition-colors"
                             title="Delete Record"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

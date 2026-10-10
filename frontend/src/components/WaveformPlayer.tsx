@@ -123,9 +123,9 @@ export const WaveformPlayer: React.FC<Props> = ({
 
       // Color based on active playback progress
       if (i <= activeBarIndex) {
-        ctx.fillStyle = '#3B82F6'; // Electric blue
+        ctx.fillStyle = '#2ec4b6'; // Waveform line #2ec4b6
       } else {
-        ctx.fillStyle = '#1E293B'; // Deep slate
+        ctx.fillStyle = '#25323a'; // Borders and dividers #25323a
       }
 
       ctx.beginPath();
@@ -153,7 +153,7 @@ export const WaveformPlayer: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-bg-deep/70 rounded-xl p-3.5 border border-border-subtle/80 space-y-3">
+    <div className="bg-[#0d1113] rounded-xl p-3.5 border border-[#25323a] space-y-3">
       {blobUrl && (
         <audio
           ref={audioRef}
@@ -171,13 +171,13 @@ export const WaveformPlayer: React.FC<Props> = ({
           width={560}
           height={64}
           onClick={handleWaveformClick}
-          className="w-full h-16 rounded-lg bg-bg-surface/30 hover:bg-bg-surface/50 transition-colors"
+          className="w-full h-16 rounded-lg bg-[#141a1d] hover:bg-[#1a2327] transition-colors"
         />
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-accent-electric pointer-events-none transition-all"
+          className="absolute top-0 bottom-0 w-0.5 bg-[#2ec4b6] pointer-events-none transition-all"
           style={{ left: `${totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0}%` }}
         >
-          <div className="w-2 h-2 -ml-[3px] -top-1 rounded-full bg-accent-electric shadow-glow-blue"></div>
+          <div className="w-2 h-2 -ml-[3px] -top-1 rounded-full bg-[#2ec4b6] shadow"></div>
         </div>
       </div>
 
@@ -186,31 +186,31 @@ export const WaveformPlayer: React.FC<Props> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={togglePlayPause}
-            className="w-8 h-8 rounded-lg bg-accent-blue hover:bg-accent-electric text-white flex items-center justify-center transition-transform active:scale-95 shadow-glow-blue"
+            className="w-8 h-8 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] flex items-center justify-center transition-transform active:scale-95 shadow font-bold"
             title={isPlaying ? "Pause Audio" : "Play Audio"}
           >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+            {isPlaying ? <Pause className="w-4 h-4 text-[#0d1113]" /> : <Play className="w-4 h-4 ml-0.5 text-[#0d1113]" />}
           </button>
 
           <button
             onClick={restartAudio}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-bg-surface transition-colors"
+            className="p-1.5 rounded-lg text-[#86989f] hover:text-[#d6e1e5] hover:bg-[#1a2327] transition-colors"
             title="Restart playback"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
-          <div className="font-mono text-xs text-slate-300 ml-1">
-            <span className="text-white font-medium">{formatTime(currentTime)}</span>
-            <span className="text-slate-400 mx-1">/</span>
-            <span className="text-slate-400">{formatTime(totalDuration)}</span>
+          <div className="font-mono text-xs ml-1">
+            <span className="text-[#d6e1e5] font-medium">{formatTime(currentTime)}</span>
+            <span className="text-[#86989f] mx-1">/</span>
+            <span className="text-[#86989f]">{formatTime(totalDuration)}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleSpeedChange}
-            className="px-2 py-0.5 rounded bg-bg-surface hover:bg-bg-cardHover text-[11px] font-mono font-medium text-slate-300 border border-border-subtle"
+            className="px-2 py-0.5 rounded bg-[#1a2327] hover:bg-[#25323a] text-[11px] font-mono font-medium text-[#d6e1e5] border border-[#25323a]"
             title="Playback Speed"
           >
             {playbackRate}x
@@ -218,10 +218,10 @@ export const WaveformPlayer: React.FC<Props> = ({
 
           <button
             onClick={toggleMute}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-bg-surface transition-colors"
+            className="p-1.5 rounded-lg text-[#86989f] hover:text-[#d6e1e5] hover:bg-[#1a2327] transition-colors"
             title={isMuted ? "Unmute" : "Mute"}
           >
-            {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+            {isMuted ? <VolumeX className="w-3.5 h-3.5 text-[#e5534b]" /> : <Volume2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>

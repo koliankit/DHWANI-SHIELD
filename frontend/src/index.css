@@ -7,10 +7,12 @@
   body {
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     transition: background-color 0.2s ease, color 0.2s ease;
+    background-color: #0d1113;
+    color: #d6e1e5;
   }
   body.dark {
-    background-color: #060b13;
-    color: #F8FAFC;
+    background-color: #0d1113;
+    color: #d6e1e5;
   }
   body.light {
     background-color: #f1f5f9;
@@ -25,16 +27,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B1120;
+  background: #0d1113;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1E293B;
+  background: #25323a;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #2ec4b6;
 }
 
 @keyframes fadeIn {

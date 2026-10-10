@@ -50,13 +50,13 @@ export const DashboardView: React.FC<Props> = ({
       <div className="flex-1 space-y-6 min-w-0">
         {/* Intake Mode Switcher */}
         <div className="flex items-center justify-between pb-1">
-          <div className="flex items-center gap-2 bg-bg-card p-1 rounded-xl border border-border-subtle shadow-sm">
+          <div className="flex items-center gap-2 bg-[#141a1d] p-1 rounded-xl border border-[#25323a] shadow-sm">
             <button
               onClick={() => setIntakeMode('upload')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 intakeMode === 'upload'
-                  ? 'bg-accent-blue text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#2ec4b6] text-[#0d1113] shadow-md'
+                  : 'text-[#86989f] hover:text-[#d6e1e5]'
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5" />
@@ -64,10 +64,10 @@ export const DashboardView: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setIntakeMode('live')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 intakeMode === 'live'
-                  ? 'bg-accent-blue text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#2ec4b6] text-[#0d1113] shadow-md'
+                  : 'text-[#86989f] hover:text-[#d6e1e5]'
               }`}
             >
               <Mic className="w-3.5 h-3.5" />
@@ -75,8 +75,8 @@ export const DashboardView: React.FC<Props> = ({
             </button>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="hidden sm:flex items-center gap-2 text-xs text-[#86989f] font-mono">
+            <span className="w-2 h-2 rounded-full bg-[#2ec4b6] animate-pulse" />
             <span>Dual-Layer Engine Ready</span>
           </div>
         </div>

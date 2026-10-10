@@ -1,14 +1,12 @@
 export interface TranscriptSegment {
   id: number;
-  start: floatNumber;
-  end: floatNumber;
+  start: number;
+  end: number;
   text: string;
   speaker: string;
   has_scam_flag: boolean;
   flagged_terms: string[];
 }
-
-type floatNumber = number;
 
 export interface ScamIndicator {
   id: string;
@@ -29,8 +27,27 @@ export interface AcousticBreakdown {
   phase_discontinuity_index: number;
 }
 
+export interface LocationRecord {
+  source: 'CARRIER_TOWER_CDR' | 'HANDSET_EMERGENCY' | 'CONSENT_LINK_GPS' | 'LOCATION_UNAVAILABLE' | string;
+  source_label: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy_meters?: number | null;
+  azimuth_degrees?: number | null;
+  beamwidth_degrees?: number | null;
+  approximate_address?: string | null;
+  timestamp: string;
+  provenance_details: string;
+  legal_basis: string;
+  consent_token?: string | null;
+}
+
 export interface AnalysisResponse {
   analysis_id: string;
+  event_id: string;
+  file_hash: string;
+  call_type?: string;
+  legal_authority?: string;
   filename: string;
   file_size_bytes: number;
   audio_duration_seconds: number;
@@ -38,9 +55,16 @@ export interface AnalysisResponse {
   channels: number;
   waveform_data: number[];
   
-  // Voice Authenticity
+  // Voice Authenticity Models: ECAPA-TDNN & AASIST / RawNet2
+  speaker_similarity_model?: string;
+  speaker_similarity_score?: number;
+  speaker_similarity_threshold?: number;
+  voiceprint_status?: 'MATCHING' | 'DIVERGENT' | 'REVIEW REQUIRED' | string;
+
+  anti_spoofing_model?: string;
+  anti_spoofing_score?: number;
   synthetic_speech_score: number;
-  authenticity_label: 'Likely Synthetic' | 'Likely Real' | 'Inconclusive' | string;
+  authenticity_label: 'LIKELY SYNTHETIC' | 'LIKELY GENUINE' | 'REVIEW REQUIRED' | string;
   authenticity_confidence: number;
   uncertainty_pct: number;
   acoustic_breakdown: AcousticBreakdown;
@@ -53,9 +77,12 @@ export interface AnalysisResponse {
   scam_indicators_count: number;
   scam_indicators: ScamIndicator[];
 
-  // Overall Risk
-  overall_risk: 'HIGH RISK' | 'VERIFY' | 'LOW RISK' | string;
-  risk_color: 'red' | 'amber' | 'green' | string;
+  // Lawful Location Record
+  location_record?: LocationRecord | null;
+
+  // Strict 3-Tier Risk
+  overall_risk: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string;
+  risk_color: 'teal' | 'amber' | 'red' | string;
   risk_explanation: string;
   evidence_summary: string;
   voice_model_result: string;
@@ -79,12 +106,14 @@ export interface AnalysisResponse {
 
 export interface HistoryItem {
   analysis_id: string;
+  event_id?: string;
+  file_hash?: string;
   filename: string;
   audio_duration_seconds: number;
   synthetic_speech_score: number;
   authenticity_label: string;
   scam_indicators_count: number;
-  overall_risk: string;
+  overall_risk: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string;
   created_at: string;
 }
 
@@ -109,6 +138,8 @@ export interface SystemStatusResponse {
 
 export interface CallRecord {
   ref_number: number;
+  event_id?: string;
+  file_hash?: string;
   case_id: string;
   subject_code: string;
   subject_label: string;
@@ -126,13 +157,19 @@ export interface CallRecord {
   azimuth_degrees?: number | null;
   beamwidth_degrees?: number | null;
   cell_radius_meters?: number | null;
+  accuracy_meters?: number | null;
+  source_type?: 'CARRIER_TOWER_CDR' | 'HANDSET_EMERGENCY' | 'CONSENT_LINK_GPS' | 'LOCATION_UNAVAILABLE' | string;
+  source_badge?: string;
+  approximate_address?: string | null;
   location_provenance: 'VERIFIED LOCATION' | 'ESTIMATED AREA' | 'SAMPLE LOCATION' | 'LOCATION UNAVAILABLE' | string;
   provenance_details: string;
+  legal_basis?: string;
   associated_evidence_id?: string | null;
   associated_case_code?: string | null;
   voice_authenticity?: string | null;
-  scam_risk?: string | null;
+  scam_risk?: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string | null;
   distance_meters?: number | null;
+  consent_token?: string | null;
 }
 
 export type ActiveNavTab = 'voice_analysis' | 'geospatial' | 'dashboard' | 'new_analysis' | 'history' | 'models' | 'settings';

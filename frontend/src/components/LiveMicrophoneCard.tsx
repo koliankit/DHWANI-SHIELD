@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Square, Activity, AlertTriangle, ShieldCheck, Volume2, Radio, Info } from 'lucide-react';
+import { Mic, MicOff, Square, Activity, AlertTriangle, ShieldCheck, Volume2, Radio, Info, Cpu, Clock, CheckCircle2 } from 'lucide-react';
 import { AnalysisResponse } from '../types';
 
 interface Props {
@@ -8,11 +8,16 @@ interface Props {
 }
 
 interface LiveUpdateData {
+  event_id?: string;
+  chunk_duration_seconds?: number;
   audio_duration_seconds: number;
   audio_level: number;
+  rolling_risk: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string;
+  rolling_risk_color: 'teal' | 'amber' | 'red' | string;
   voice_authenticity: {
     result: string;
     score: number;
+    similarity_score?: number;
     confidence: number;
     explanation: string;
   };
@@ -40,7 +45,9 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [liveData, setLiveData] = useState<LiveUpdateData | null>(null);
+  const [chunkCount, setChunkCount] = useState(0);
   const [latency, setLatency] = useState(0);
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -52,14 +59,17 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
   const animFrameRef = useRef<number | null>(null);
   const audioLevelRef = useRef<number>(0);
 
-  // Clean up resources on unmount
+  // 2 to 4 second chunk buffer (at 16kHz, 3.0 seconds = 48,000 samples)
+  const chunkBufferRef = useRef<Float32Array>(new Float32Array(0));
+  const CHUNK_SIZE_SAMPLES = 48000; // 3.0 second chunks
+
   useEffect(() => {
     return () => {
       stopLiveSession();
     };
   }, []);
 
-  // Canvas visualizer loop
+  // Visualizer render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -74,7 +84,7 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
       ctx.clearRect(0, 0, width, height);
 
       // Grid background
-      ctx.strokeStyle = '#152238';
+      ctx.strokeStyle = '#25323a';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, height / 2);
@@ -92,21 +102,21 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
           const barHeight = Math.max(4, wave * level * (height * 0.85));
           const y = (height - barHeight) / 2;
 
-          // Color gradient based on risk or audio level
-          const isHighRisk = liveData?.risk_assessment?.level === 'HIGH RISK';
-          if (isHighRisk) {
-            ctx.fillStyle = '#f43f5e';
-          } else if (level > 0.4) {
-            ctx.fillStyle = '#38bdf8';
+          // Color based on rolling risk
+          const riskLevel = liveData?.rolling_risk;
+          if (riskLevel === 'HIGH RISK') {
+            ctx.fillStyle = '#e5534b'; // red
+          } else if (riskLevel === 'REVIEW REQUIRED') {
+            ctx.fillStyle = '#f0a73a'; // amber
           } else {
-            ctx.fillStyle = '#0ea5e9';
+            ctx.fillStyle = '#2ec4b6'; // teal
           }
 
           ctx.fillRect(x, y, barWidth, barHeight);
         }
       } else {
-        // Idle flatline with subtle pulse
-        ctx.strokeStyle = '#334155';
+        // Idle flatline
+        ctx.strokeStyle = '#25323a';
         ctx.lineWidth = 2;
         ctx.beginPath();
         for (let x = 0; x < width; x += 5) {
@@ -131,9 +141,10 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
     setMicStatus('requesting');
     setDuration(0);
     setLiveData(null);
+    setChunkCount(0);
+    chunkBufferRef.current = new Float32Array(0);
 
     try {
-      // 1. Request microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -144,7 +155,6 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
       });
       mediaStreamRef.current = stream;
 
-      // 2. Initialize WebSocket connection
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//127.0.0.1:8000/ws/live-analysis`;
       const ws = new WebSocket(wsUrl);
@@ -153,7 +163,6 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
       ws.onopen = () => {
         setIsRecording(true);
         setMicStatus('recording');
-        // Start duration counter
         durationIntervalRef.current = setInterval(() => {
           setDuration((prev) => prev + 1);
         }, 1000);
@@ -162,12 +171,13 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === 'live_update') {
+          if (msg.type === 'connected') {
+            setActiveEventId(msg.event_id || null);
+          } else if (msg.type === 'live_update') {
             setLiveData(msg);
             audioLevelRef.current = msg.audio_level || 0;
-            setLatency(msg.latency_ms || 15);
+            setLatency(msg.latency_ms || 18);
           } else if (msg.type === 'final_analysis') {
-            // Processing complete, notify parent view
             if (msg.data) {
               onLiveAnalysisComplete(msg.data);
             }
@@ -187,52 +197,66 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
         setMicStatus('idle');
       };
 
-      // 3. Setup Web Audio API PCM streaming
+      // Web Audio API: 16kHz audio capture and chunk buffering
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
-      // Using ScriptProcessorNode for wide browser compatibility
+      // Process 4096 samples per callback
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       scriptProcessorRef.current = processor;
 
       processor.onaudioprocess = (e) => {
-        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
         const inputData = e.inputBuffer.getChannelData(0);
 
-        // Calculate simple volume level for visualizer
+        // Calculate instantaneous volume level
         let sum = 0;
         for (let i = 0; i < inputData.length; i++) {
           sum += inputData[i] * inputData[i];
         }
         audioLevelRef.current = Math.min(1.0, Math.sqrt(sum / inputData.length) * 4);
 
-        // Convert Float32 to Int16 PCM
-        const pcm16 = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          const s = Math.max(-1, Math.min(1, inputData[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        // Append to 2 to 4 second chunk buffer
+        const existing = chunkBufferRef.current;
+        const combined = new Float32Array(existing.length + inputData.length);
+        combined.set(existing, 0);
+        combined.set(inputData, existing.length);
+        chunkBufferRef.current = combined;
+
+        // When chunk buffer reaches 3.0 seconds (48,000 samples), send chunk to backend!
+        if (chunkBufferRef.current.length >= CHUNK_SIZE_SAMPLES) {
+          const chunkToSend = chunkBufferRef.current.slice(0, CHUNK_SIZE_SAMPLES);
+          // Keep overlap of 0.5s (8000 samples) for rolling temporal continuity
+          chunkBufferRef.current = chunkBufferRef.current.slice(CHUNK_SIZE_SAMPLES - 8000);
+
+          // Convert Float32 to Int16 PCM
+          const pcm16 = new Int16Array(chunkToSend.length);
+          for (let i = 0; i < chunkToSend.length; i++) {
+            const s = Math.max(-1, Math.min(1, chunkToSend[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+
+          const binary = String.fromCharCode.apply(null, Array.from(new Uint8Array(pcm16.buffer)));
+          const base64Data = btoa(binary);
+
+          wsRef.current.send(
+            JSON.stringify({
+              action: 'audio_chunk',
+              data: base64Data,
+              format: 'pcm16',
+              sample_rate: 16000,
+            })
+          );
+          setChunkCount((prev) => prev + 1);
         }
-
-        // Convert to binary/base64
-        const binary = String.fromCharCode.apply(null, Array.from(new Uint8Array(pcm16.buffer)));
-        const base64Data = btoa(binary);
-
-        ws.send(
-          JSON.stringify({
-            action: 'audio_chunk',
-            data: base64Data,
-            format: 'pcm16',
-            sample_rate: 16000,
-          })
-        );
       };
 
       source.connect(processor);
       processor.connect(audioCtx.destination);
 
-      // 4. Optional browser SpeechRecognition integration for live transcript streaming
+      // SpeechRecognition for interim live transcription
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         try {
@@ -246,8 +270,8 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
             for (let i = event.resultIndex; i < event.results.length; ++i) {
               transcriptText += event.results[i][0].transcript;
             }
-            if (transcriptText && ws.readyState === WebSocket.OPEN) {
-              ws.send(
+            if (transcriptText && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
                 JSON.stringify({
                   action: 'transcript_chunk',
                   text: transcriptText,
@@ -258,23 +282,22 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
 
           rec.start();
           recognitionRef.current = rec;
-        } catch (e) {
-          console.log('Web Speech API continuous recognition fallback');
+        } catch {
+          // Fallback handled by backend
         }
       }
     } catch (err: any) {
-      console.error('Microphone capture error:', err);
+      console.error('Error starting live session:', err);
       setMicStatus('error');
-      setErrorMessage(
-        err.name === 'NotAllowedError'
-          ? 'Microphone permission denied. Please grant microphone access in browser settings.'
-          : `Failed to access microphone: ${err.message}`
-      );
-      stopLiveSession();
+      setErrorMessage(err.message || 'Microphone access denied or audio initialization failed.');
     }
   };
 
   const stopLiveSession = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ action: 'stop' }));
+    }
+
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
@@ -283,21 +306,17 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {}
+      } catch {}
       recognitionRef.current = null;
     }
 
     if (scriptProcessorRef.current) {
-      try {
-        scriptProcessorRef.current.disconnect();
-      } catch (e) {}
+      scriptProcessorRef.current.disconnect();
       scriptProcessorRef.current = null;
     }
 
     if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close();
-      } catch (e) {}
+      audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
 
@@ -306,199 +325,157 @@ export const LiveMicrophoneCard: React.FC<Props> = ({
       mediaStreamRef.current = null;
     }
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ action: 'stop' }));
-    }
-
     setIsRecording(false);
     setMicStatus('idle');
   };
 
-  // Helper to send a quick simulated scam phrase over the stream for testing without talking
-  const sendSimulatedPhrase = (phrase: string) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          action: 'transcript_chunk',
-          text: phrase,
-        })
-      );
-    }
-  };
-
-  const formatSeconds = (sec: number) => {
+  const formatDuration = (sec: number) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Determine rolling risk styling strictly matching user palette
+  const rollingRisk = liveData?.rolling_risk || 'ANALYZING CHUNKS...';
+  let badgeBg = 'bg-[#1a2327] border-[#25323a] text-[#86989f]';
+  if (rollingRisk === 'HIGH RISK') {
+    badgeBg = 'bg-[#e5534b] text-[#0d1113] border-[#e5534b] font-bold';
+  } else if (rollingRisk === 'REVIEW REQUIRED') {
+    badgeBg = 'bg-[#f0a73a] text-[#0d1113] border-[#f0a73a] font-bold';
+  } else if (rollingRisk === 'LOW RISK') {
+    badgeBg = 'bg-[#2ec4b6] text-[#0d1113] border-[#2ec4b6] font-bold';
+  }
+
   return (
-    <div className="bg-bg-card rounded-2xl p-6 border border-border-subtle shadow-lg space-y-5">
-      {/* Header and live badge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Radio className={`w-4 h-4 ${isRecording ? 'text-rose-400 animate-pulse' : 'text-slate-400'}`} />
-            <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
-              Live Microphone Anti-Scam Monitoring
-            </h2>
-            {isRecording && (
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-800/60 font-semibold animate-pulse">
-                REC • STREAMING
-              </span>
-            )}
+    <div className="bg-[#141a1d] rounded-2xl p-5 border border-[#25323a] shadow-lg space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#12312f] border border-[#2ec4b6]/40 flex items-center justify-center text-[#2ec4b6]">
+            <Radio className="w-4 h-4 animate-pulse" />
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Real-time acoustic signal sampling with streaming financial fraud intent extraction.
-          </p>
+          <div>
+            <h2 className="text-sm font-bold text-[#d6e1e5] tracking-tight">Live Call Stream & In-App WebRTC</h2>
+            <p className="text-[11px] text-[#86989f]">
+              Streaming in <span className="text-[#2ec4b6] font-semibold">2 to 4 second chunks</span> to ECAPA-TDNN & AASIST models
+            </p>
+          </div>
         </div>
 
-        {/* Live Metrics */}
+        {/* Live Status Pill */}
+        <div className="flex items-center gap-2 font-mono text-xs">
+          {activeEventId && (
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded bg-[#1a2327] border border-[#25323a] text-[#86989f] text-[11px]">
+              {activeEventId}
+            </span>
+          )}
+          {isRecording ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e5534b]/20 border border-[#e5534b] text-[#e5534b] font-semibold text-[11px] animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-[#e5534b]" />
+              LIVE ({formatDuration(duration)})
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full bg-[#1a2327] border border-[#25323a] text-[#86989f] text-[11px]">
+              READY
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Real-World Telephony Authority Notice */}
+      <div className="p-3 rounded-xl bg-[#1a2327] border border-[#25323a] text-[11px] font-mono leading-relaxed text-[#86989f]">
+        <div className="flex items-center gap-1.5 text-[#2ec4b6] font-bold mb-1">
+          <Info className="w-3.5 h-3.5" />
+          Telephony Architecture & Legal Authority
+        </div>
+        <span>
+          A web app cannot tap an ordinary phone call. Live audio only works for calls routed through an in-app WebRTC system or a telephony provider (Twilio, Exotel) streaming call audio to your server. Microphone input is provided for testing. In production, proper legal authority (recording notice or court order) is required.
+        </span>
+      </div>
+
+      {/* Canvas Visualizer */}
+      <div className="relative rounded-xl overflow-hidden bg-[#0d1113] border border-[#25323a] p-2">
+        <canvas ref={canvasRef} width={650} height={75} className="w-full h-18 block rounded" />
         {isRecording && (
-          <div className="flex items-center gap-3 bg-bg-surface px-3 py-1.5 rounded-xl border border-border-subtle">
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 block font-mono">SESSION DURATION</span>
-              <span className="text-xs font-mono font-bold text-white">{formatSeconds(duration)}</span>
-            </div>
-            <div className="h-6 w-px bg-border-subtle" />
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 block font-mono">LATENCY</span>
-              <span className="text-xs font-mono font-bold text-emerald-400">{latency} ms</span>
-            </div>
+          <div className="absolute top-2 right-3 flex items-center gap-2 text-[10px] font-mono text-[#86989f]">
+            <span>Chunk #{chunkCount} (3.0s window)</span>
+            <span>·</span>
+            <span className="text-[#2ec4b6]">{latency}ms latency</span>
           </div>
         )}
       </div>
 
-      {/* Canvas Oscilloscope Visualizer */}
-      <div className="relative bg-bg-deep rounded-xl border border-border-subtle p-3 overflow-hidden">
-        <canvas
-          ref={canvasRef}
-          width={640}
-          height={80}
-          className="w-full h-20 block rounded"
-        />
-
-        {/* Overlay status tag */}
-        <div className="absolute top-2 left-3 flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              isRecording ? 'bg-rose-500 animate-ping' : 'bg-slate-600'
-            }`}
-          />
-          <span className="text-[10px] font-mono text-slate-400">
-            {isRecording ? 'Capturing 16kHz Mono Stream' : 'Microphone Ready'}
-          </span>
-        </div>
-
-        {isRecording && (
-          <div className="absolute bottom-2 right-3 text-[10px] font-mono text-slate-400 bg-bg-card/80 px-2 py-0.5 rounded border border-border-subtle">
-            Web Audio API + WebSocket Active
+      {/* Rolling Result Display during Live Stream */}
+      {isRecording && liveData && (
+        <div className="p-3.5 rounded-xl bg-[#1a2327] border border-[#25323a] space-y-2.5 animate-fadeIn">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono text-[#86989f] flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-[#2ec4b6]" />
+              Rolling Risk Result (Live Chunks)
+            </span>
+            <span className={`text-xs px-3 py-1 rounded border uppercase font-mono tracking-wider ${badgeBg}`}>
+              {rollingRisk}
+            </span>
           </div>
-        )}
-      </div>
 
-      {/* Error Banner */}
+          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+            <div className="p-2 rounded bg-[#141a1d] border border-[#25323a]">
+              <span className="text-[#86989f]">AASIST Anti-Spoofing:</span>
+              <div className="text-[#d6e1e5] font-bold mt-0.5">
+                {liveData.voice_authenticity.result} ({(liveData.voice_authenticity.score * 100).toFixed(1)}%)
+              </div>
+            </div>
+            <div className="p-2 rounded bg-[#141a1d] border border-[#25323a]">
+              <span className="text-[#86989f]">ECAPA-TDNN Similarity:</span>
+              <div className="text-[#2ec4b6] font-bold mt-0.5">
+                {liveData.voice_authenticity.similarity_score || 85.0}% (Threshold: 85%)
+              </div>
+            </div>
+          </div>
+
+          {liveData.conversation_analysis?.transcript && (
+            <div className="text-xs font-mono bg-[#141a1d] p-2.5 rounded border border-[#25323a] text-[#d6e1e5] max-h-20 overflow-y-auto">
+              <span className="text-[#86989f] text-[10px] block mb-1">Live Transcript:</span>
+              "{liveData.conversation_analysis.transcript}"
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Error Message */}
       {errorMessage && (
-        <div className="p-3 bg-rose-950/50 border border-rose-800/60 rounded-xl text-xs text-rose-300 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+        <div className="p-3 rounded-lg bg-[#e5534b]/15 border border-[#e5534b]/50 text-[#e5534b] text-xs font-mono flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
-      {/* Streaming Result Preview while Live */}
-      {isRecording && liveData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-bg-surface/60 rounded-xl border border-border-subtle">
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Layer 1: Voice</span>
-            <span className="text-xs font-bold text-white">
-              {liveData.voice_authenticity.result} ({(liveData.voice_authenticity.score * 100).toFixed(0)}%)
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Layer 2: Fraud Flags</span>
-            <span className="text-xs font-bold text-amber-300">
-              {liveData.conversation_analysis.indicators.length} Coercion Markers
-            </span>
-          </div>
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase font-mono block">Composite Risk</span>
-            <span
-              className={`text-xs font-black font-mono ${
-                liveData.risk_assessment.level === 'HIGH RISK'
-                  ? 'text-rose-400'
-                  : 'text-emerald-400'
-              }`}
-            >
-              {liveData.risk_assessment.level}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Live Transcript Snippet */}
-      {isRecording && liveData?.conversation_analysis?.transcript && (
-        <div className="p-3 bg-bg-surface rounded-xl border border-border-subtle text-xs">
-          <span className="text-[10px] font-mono text-slate-400 block mb-1">STREAMING TRANSCRIPT:</span>
-          <p className="text-slate-200 italic">"{liveData.conversation_analysis.transcript}"</p>
-        </div>
-      )}
-
-      {/* Controls & Action Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          {!isRecording ? (
-            <button
-              onClick={startLiveSession}
-              disabled={isAnalyzing}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blueHover text-white font-semibold text-xs transition-all shadow-md active:scale-95 cursor-pointer"
-            >
-              <Mic className="w-4 h-4 text-white" />
-              <span>Start Live Analysis</span>
-            </button>
-          ) : (
-            <button
-              onClick={stopLiveSession}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition-all shadow-md shadow-rose-900/30 active:scale-95 cursor-pointer"
-            >
-              <Square className="w-3.5 h-3.5 fill-white text-white" />
-              <span>Stop & Finalize Analysis</span>
-            </button>
-          )}
-
-          {isRecording && (
-            <span className="text-xs text-slate-400 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Microphone listening
-            </span>
-          )}
+      {/* Action Controls */}
+      <div className="flex items-center justify-between pt-1">
+        <div className="text-xs font-mono text-[#86989f] flex items-center gap-2">
+          <span>Engine: ECAPA-TDNN + AASIST</span>
+          <span>·</span>
+          <span>Rolling: 3.0s Chunks</span>
         </div>
 
-        {/* Quick test phrases for quick testing while mic is active */}
-        {isRecording && (
-          <div className="flex items-center gap-2 flex-wrap text-[11px]">
-            <span className="text-slate-400 text-[10px]">Test Coercive Phrases:</span>
-            <button
-              onClick={() => sendSimulatedPhrase("This is SBI fraud branch. Tell me your 6 digit OTP immediately or account blocked.")}
-              className="px-2 py-1 rounded bg-bg-surface hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-border-subtle transition-colors text-[10px]"
-            >
-              Simulate OTP Scam
-            </button>
-            <button
-              onClick={() => sendSimulatedPhrase("Emergency hospital clinic, transfer 50000 rupees to this UPI id now.")}
-              className="px-2 py-1 rounded bg-bg-surface hover:bg-amber-950/60 text-slate-300 hover:text-amber-300 border border-border-subtle transition-colors text-[10px]"
-            >
-              Simulate UPI Urgent
-            </button>
-          </div>
+        {!isRecording ? (
+          <button
+            onClick={startLiveSession}
+            disabled={isAnalyzing || micStatus === 'requesting'}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs font-mono transition-all shadow-md hover:scale-[1.01] disabled:opacity-50"
+          >
+            <Mic className="w-4 h-4 text-[#0d1113]" />
+            <span>{micStatus === 'requesting' ? 'Requesting Mic...' : 'Start Live Stream'}</span>
+          </button>
+        ) : (
+          <button
+            onClick={stopLiveSession}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#e5534b] hover:bg-[#e5534b]/90 text-[#0d1113] font-bold text-xs font-mono transition-all shadow-md hover:scale-[1.01]"
+          >
+            <Square className="w-4 h-4 text-[#0d1113]" />
+            <span>End Call & Generate Final Result</span>
+          </button>
         )}
-      </div>
-
-      {/* Platform Limitation Notice required by prompt */}
-      <div className="p-3 bg-bg-deep/70 rounded-xl border border-border-subtle/50 text-[11px] text-slate-400 flex items-start gap-2 leading-relaxed">
-        <Info className="w-3.5 h-3.5 text-accent-electric flex-shrink-0 mt-0.5" />
-        <span>
-          <strong className="text-slate-300">Privacy & Architecture Notice:</strong> Audio is processed locally in real-time. Microphone captures authorized input directly from your browser; cellular telecommunication interception is not performed. Session buffers are wiped immediately upon termination.
-        </span>
       </div>
     </div>
   );

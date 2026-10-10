@@ -89,7 +89,7 @@ export const App: React.FC = () => {
       setActiveExampleId(null);
       setAnalysisStage(0);
       setHasFailed(false);
-      setActiveTab('dashboard');
+      setActiveTab('new_analysis');
       return;
     }
     setActiveTab(tab);
@@ -143,6 +143,7 @@ export const App: React.FC = () => {
       setAnalysisData(result);
       setAnalysisStage(5);
       setHistoryCount((prev) => prev + 1);
+      setActiveTab('dashboard');
     } catch (err: any) {
       setHasFailed(true);
       setFailureMessage(err.message || 'Analysis processing failed');
@@ -175,6 +176,7 @@ export const App: React.FC = () => {
       setAnalysisData(result);
       setAnalysisStage(5);
       setHistoryCount((prev) => prev + 1);
+      setActiveTab('dashboard');
     } catch (err: any) {
       setHasFailed(true);
       setFailureMessage(err.message || 'Quick test execution failed');
@@ -189,6 +191,7 @@ export const App: React.FC = () => {
     setActiveExampleId(null);
     setAnalysisStage(5);
     setHistoryCount((prev) => prev + 1);
+    setActiveTab('dashboard');
   };
 
   // Replay historical analysis in dashboard
@@ -206,8 +209,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className={`flex min-h-screen font-sans selection:bg-teal-500 selection:text-white transition-colors duration-200 ${
-      isDarkMode ? 'bg-[#060b13] text-slate-100' : 'bg-slate-100 text-slate-900'
+    <div className={`flex min-h-screen font-sans selection:bg-[#2ec4b6] selection:text-[#0d1113] transition-colors duration-200 ${
+      isDarkMode ? 'bg-[#0d1113] text-[#d6e1e5]' : 'bg-slate-100 text-slate-900'
     }`}>
       {/* 1. Left Fixed Sidebar */}
       <Sidebar
@@ -251,8 +254,8 @@ export const App: React.FC = () => {
             />
           )}
 
-          {/* 3. Scam & Fraud Scanner (Two-Layer Engine) */}
-          {activeTab === 'dashboard' && (
+          {/* 3. Scam & Fraud Scanner & New Intake Studio */}
+          {(activeTab === 'dashboard' || activeTab === 'new_analysis') && (
             <DashboardView
               selectedFile={selectedFile}
               onFileSelect={handleFileSelect}

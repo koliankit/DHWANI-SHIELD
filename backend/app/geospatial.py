@@ -1,9 +1,14 @@
 import math
+import uuid
+import datetime
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+from app.services.geocoding import reverse_geocode_sync
 
 class CallRecord(BaseModel):
     ref_number: int
+    event_id: str
+    file_hash: str
     case_id: str
     subject_code: str
     subject_label: str
@@ -21,13 +26,19 @@ class CallRecord(BaseModel):
     azimuth_degrees: Optional[int] = None
     beamwidth_degrees: Optional[int] = None
     cell_radius_meters: Optional[int] = None
+    accuracy_meters: Optional[int] = None
+    source_type: str  # CARRIER_TOWER_CDR | HANDSET_EMERGENCY | CONSENT_LINK_GPS | LOCATION_UNAVAILABLE
+    source_badge: str  # Verified Location | Estimated Area | Handset Emergency | Consent Link GPS | Location Unavailable
+    approximate_address: Optional[str] = None
     location_provenance: str  # VERIFIED LOCATION | ESTIMATED AREA | SAMPLE LOCATION | LOCATION UNAVAILABLE
     provenance_details: str
+    legal_basis: str
     associated_evidence_id: Optional[str] = None
     associated_case_code: Optional[str] = None
     voice_authenticity: Optional[str] = None
-    scam_risk: Optional[str] = None
+    scam_risk: Optional[str] = None  # LOW RISK | REVIEW REQUIRED | HIGH RISK
     distance_meters: Optional[float] = None
+    consent_token: Optional[str] = None
 
 # Haversine distance calculation in meters
 def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -40,10 +51,12 @@ def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
     return R * c
 
-# Authentic CDR dataset matching Reference Image 1 (Alexandria / Washington DC / Springfield tower cluster)
+# Authentic CDR and Lawful Telemetry dataset matching Reference Image 1 & User Requirements
 CALL_RECORDS_DB: List[Dict[str, Any]] = [
     {
-        "ref_number": 1348,  # Highlighted selected row in Reference Image 1!
+        "ref_number": 1348,  # Highlighted selected row in Reference Image 1
+        "event_id": "EVT-2026-0884",
+        "file_hash": "9a8f4c2e6b1d037a5f8e2190bb42cf8912d0987e41ac32de58190c14b2d30fa1",
         "case_id": "7502",
         "subject_code": "7502 VoLTE",
         "subject_label": "Target Principal (Blue)",
@@ -61,8 +74,13 @@ CALL_RECORDS_DB: List[Dict[str, Any]] = [
         "azimuth_degrees": 60,
         "beamwidth_degrees": 65,
         "cell_radius_meters": 1200,
+        "accuracy_meters": 1200,
+        "source_type": "CARRIER_TOWER_CDR",
+        "source_badge": "Estimated Area (Carrier Tower CDR)",
+        "approximate_address": reverse_geocode_sync(38.7985, -77.1062),
         "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
+        "provenance_details": "Carrier tower sector coverage area obtained via lawful court order. A tower indicates an estimated geographic area, not a point.",
+        "legal_basis": "Lawful Court Subpoena #ORD-7502 (Carrier Tower Sector Record)",
         "associated_evidence_id": "case-v0884",
         "associated_case_code": "Case #V-0884",
         "voice_authenticity": "Likely Synthetic (89%)",
@@ -70,6 +88,8 @@ CALL_RECORDS_DB: List[Dict[str, Any]] = [
     },
     {
         "ref_number": 1364,
+        "event_id": "EVT-2026-0885",
+        "file_hash": "1b3e8a4f9c72d5016e8b42f3a9d0124c56e7890ab12cd34ef567890123456789",
         "case_id": "7502",
         "subject_code": "7502 VoLTE",
         "subject_label": "Target Principal (Blue)",
@@ -87,15 +107,22 @@ CALL_RECORDS_DB: List[Dict[str, Any]] = [
         "azimuth_degrees": 60,
         "beamwidth_degrees": 65,
         "cell_radius_meters": 1200,
+        "accuracy_meters": 1200,
+        "source_type": "CARRIER_TOWER_CDR",
+        "source_badge": "Estimated Area (Carrier Tower CDR)",
+        "approximate_address": reverse_geocode_sync(38.7990, -77.1055),
         "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
+        "provenance_details": "Carrier tower sector coverage area obtained via lawful court order.",
+        "legal_basis": "Lawful Court Subpoena #ORD-7502",
+        "associated_evidence_id": "case-v0885",
+        "associated_case_code": "Case #V-0885",
+        "voice_authenticity": "Likely Genuine (18%)",
+        "scam_risk": "HIGH RISK"
     },
     {
         "ref_number": 1361,
+        "event_id": "EVT-2026-0886",
+        "file_hash": "3c5a7f9d1e2b4860a3c5d7e9f1a3b5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9",
         "case_id": "7502",
         "subject_code": "7502 VoLTE",
         "subject_label": "Target Principal (Blue)",
@@ -113,350 +140,116 @@ CALL_RECORDS_DB: List[Dict[str, Any]] = [
         "azimuth_degrees": 60,
         "beamwidth_degrees": 65,
         "cell_radius_meters": 1200,
+        "accuracy_meters": 1200,
+        "source_type": "CARRIER_TOWER_CDR",
+        "source_badge": "Estimated Area (Carrier Tower CDR)",
+        "approximate_address": reverse_geocode_sync(38.7985, -77.1062),
         "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "REVIEW REQUIRED"
-    },
-    {
-        "ref_number": 1359,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0419",
-        "start_time": "3/7/2026 3:45:14 PM",
-        "created_time": "3/7/2026 10:45:13 AM",
-        "duration_str": "00:00:43",
-        "duration_seconds": 43,
-        "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": "case-v0885",
-        "associated_case_code": "Case #V-0885",
-        "voice_authenticity": "Likely Real Voice (24% synth)",
-        "scam_risk": "HIGH RISK"
-    },
-    {
-        "ref_number": 1356,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0831",
-        "start_time": "3/7/2026 3:43:55 PM",
-        "created_time": "3/7/2026 10:43:55 AM",
-        "duration_str": "00:00:15",
-        "duration_seconds": 15,
-        "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 1355,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0192",
-        "start_time": "3/7/2026 3:35:00 PM",
-        "created_time": "3/7/2026 10:35:00 AM",
-        "duration_str": "00:00:13",
-        "duration_seconds": 13,
-        "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 1352,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0920",
-        "start_time": "3/7/2026 3:34:02 PM",
-        "created_time": "3/7/2026 10:34:01 AM",
-        "duration_str": "00:00:23",
-        "duration_seconds": 23,
-        "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "REVIEW REQUIRED"
-    },
-    {
-        "ref_number": 1351,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0771",
-        "start_time": "3/7/2026 3:30:44 PM",
-        "created_time": "3/7/2026 10:30:45 AM",
-        "duration_str": "00:00:23",
-        "duration_seconds": 23,
-        "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
+        "provenance_details": "Carrier tower sector coverage area obtained via lawful court order.",
+        "legal_basis": "Lawful Court Subpoena #ORD-7502",
         "associated_evidence_id": "case-v0886",
         "associated_case_code": "Case #V-0886",
-        "voice_authenticity": "Likely Real Voice (18% synth)",
+        "voice_authenticity": "Likely Genuine (14%)",
         "scam_risk": "LOW RISK"
     },
     {
-        "ref_number": 1345,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0831",
-        "start_time": "3/7/2026 2:54:50 PM",
-        "created_time": "3/7/2026 9:54:48 AM",
-        "duration_str": "00:00:17",
-        "duration_seconds": 17,
+        "ref_number": 1380,
+        "event_id": "EVT-2026-0912",
+        "file_hash": "7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a91b3e8a4f9c72d5016e8b42f3a9d0124",
+        "case_id": "6057",
+        "subject_code": "6057 CDMA",
+        "subject_label": "Secondary Co-conspirator (Red)",
+        "target_number": "5712746057",
+        "recipient_number": "+1 703 555 9011",
+        "start_time": "3/7/2026 6:15:22 PM",
+        "created_time": "3/7/2026 1:15:22 PM",
+        "duration_str": "00:01:14",
+        "duration_seconds": 74,
         "direction": "incoming",
         "first_tower": "3102604f160b7e303",
         "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
+        "latitude": 38.7758,
+        "longitude": -77.1824,
+        "azimuth_degrees": 120,
         "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
+        "cell_radius_meters": 15,
+        "accuracy_meters": 15,
+        "source_type": "HANDSET_EMERGENCY",
+        "source_badge": "Handset Location (Emergency Call)",
+        "approximate_address": reverse_geocode_sync(38.7758, -77.1824),
+        "location_provenance": "VERIFIED LOCATION",
+        "provenance_details": "E911 PSAP Emergency Handset GPS broadcast with emergency call stream.",
+        "legal_basis": "Emergency Dispatch Services Telemetry (E911 PSAP)",
+        "associated_evidence_id": None,
+        "associated_case_code": None,
+        "voice_authenticity": None,
+        "scam_risk": "REVIEW REQUIRED"
+    },
+    {
+        "ref_number": 1395,
+        "event_id": "EVT-2026-0940",
+        "file_hash": "4a2b6c8d0e1f3a5b7c9d1e3f5a7b9c1d3e5f7a91b3e8a4f9c72d5016e8b42f3a",
+        "case_id": "7498",
+        "subject_code": "7498 VoLTE",
+        "subject_label": "Complainant Verification (Green)",
+        "target_number": "5712747498",
+        "recipient_number": "+1 202 555 0144",
+        "start_time": "3/7/2026 7:02:11 PM",
+        "created_time": "3/7/2026 2:02:11 PM",
+        "duration_str": "00:00:45",
+        "duration_seconds": 45,
+        "direction": "outgoing",
+        "first_tower": "3102604f160b7e303",
+        "last_tower": "3102604f160b7e303",
+        "latitude": 38.8895,
+        "longitude": -77.0352,
+        "azimuth_degrees": None,
+        "beamwidth_degrees": None,
+        "cell_radius_meters": 8,
+        "accuracy_meters": 8,
+        "source_type": "CONSENT_LINK_GPS",
+        "source_badge": "Complainant GPS Consent Link",
+        "approximate_address": reverse_geocode_sync(38.8895, -77.0352),
+        "location_provenance": "VERIFIED LOCATION",
+        "provenance_details": "Complainant opened secure verification link and consented to share device GPS coordinates.",
+        "legal_basis": "Complainant Informed In-Browser Consent (HTML5 Geolocation API)",
         "associated_evidence_id": None,
         "associated_case_code": None,
         "voice_authenticity": None,
         "scam_risk": "LOW RISK"
     },
     {
-        "ref_number": 1344,
+        "ref_number": 1402,
+        "event_id": "EVT-2026-0999",
+        "file_hash": "f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7",
         "case_id": "7502",
         "subject_code": "7502 VoLTE",
         "subject_label": "Target Principal (Blue)",
         "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0192",
-        "start_time": "3/7/2026 2:47:11 PM",
-        "created_time": "3/7/2026 9:47:09 AM",
-        "duration_str": "00:00:13",
-        "duration_seconds": 13,
+        "recipient_number": "+1 703 555 9942",
+        "start_time": "3/7/2026 7:45:00 PM",
+        "created_time": "3/7/2026 2:45:00 PM",
+        "duration_str": "00:00:32",
+        "duration_seconds": 32,
         "direction": "incoming",
-        "first_tower": "3102604f160b7e303",
-        "last_tower": "3102604f160b7e303",
-        "latitude": 38.7985,
-        "longitude": -77.1062,
-        "azimuth_degrees": 60,
-        "beamwidth_degrees": 65,
-        "cell_radius_meters": 1200,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 1264,
-        "case_id": "7502",
-        "subject_code": "7502 VoLTE",
-        "subject_label": "Target Principal (Blue)",
-        "target_number": "5712747502",
-        "recipient_number": "+1 703 555 0999",
-        "start_time": "3/4/2026 9:39:21 PM",
-        "created_time": "3/4/2026 4:39:20 PM",
-        "duration_str": "00:00:26",
-        "duration_seconds": 26,
-        "direction": "incoming",
-        "first_tower": "Unknown Tower Ref",
-        "last_tower": "Unknown Tower Ref",
+        "first_tower": "TOWER_UNAVAILABLE",
+        "last_tower": "TOWER_UNAVAILABLE",
         "latitude": None,
         "longitude": None,
         "azimuth_degrees": None,
         "beamwidth_degrees": None,
         "cell_radius_meters": None,
+        "accuracy_meters": None,
+        "source_type": "LOCATION_UNAVAILABLE",
+        "source_badge": "Location Unavailable",
+        "approximate_address": None,
         "location_provenance": "LOCATION UNAVAILABLE",
-        "provenance_details": "No cell tower handoff recorded on telecom gateway",
+        "provenance_details": "No authorized carrier tower record, emergency dispatch telemetry, or complainant consent link exists. Map position cannot be guessed.",
+        "legal_basis": "No Lawful Location Record Attached",
         "associated_evidence_id": None,
         "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "REVIEW REQUIRED"
-    },
-    {
-        "ref_number": 32218,
-        "case_id": "7498",
-        "subject_code": "7498 VoLTE",
-        "subject_label": "Secondary Subject (Orange)",
-        "target_number": "5712747498",
-        "recipient_number": "+1 703 555 0224",
-        "start_time": "3/2/2026 8:42:13 PM",
-        "created_time": "3/2/2026 3:42:12 PM",
-        "duration_str": "00:00:15",
-        "duration_seconds": 15,
-        "direction": "incoming",
-        "first_tower": "3102604f161ecb28f",
-        "last_tower": "3102604f161ecb28f",
-        "latitude": 38.7890,
-        "longitude": -77.1230,
-        "azimuth_degrees": 180,
-        "beamwidth_degrees": 70,
-        "cell_radius_meters": 1800,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "REVIEW REQUIRED"
-    },
-    {
-        "ref_number": 31538,
-        "case_id": "7498",
-        "subject_code": "7498 VoLTE",
-        "subject_label": "Secondary Subject (Orange)",
-        "target_number": "5712747498",
-        "recipient_number": "+1 703 555 0224",
-        "start_time": "2/28/2026 6:46:26 PM",
-        "created_time": "2/28/2026 1:46:26 PM",
-        "duration_str": "00:00:02",
-        "duration_seconds": 2,
-        "direction": "outgoing",
-        "first_tower": "3102604f161ecb28f",
-        "last_tower": "3102604f161ecb28f",
-        "latitude": 38.7890,
-        "longitude": -77.1230,
-        "azimuth_degrees": 180,
-        "beamwidth_degrees": 70,
-        "cell_radius_meters": 1800,
-        "location_provenance": "ESTIMATED AREA",
-        "provenance_details": "Cell Sector Azimuth Triangulation via Carrier CDR",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 31434,
-        "case_id": "7498",
-        "subject_code": "7498 VoLTE",
-        "subject_label": "Secondary Subject (Orange)",
-        "target_number": "5712747498",
-        "recipient_number": "+1 703 555 0831",
-        "start_time": "2/25/2026 2:13:31 PM",
-        "created_time": "2/25/2026 9:13:31 AM",
-        "duration_str": "00:00:14",
-        "duration_seconds": 14,
-        "direction": "incoming",
-        "first_tower": "3102604f160e44704",
-        "last_tower": "3102604f160e44704",
-        "latitude": 38.8150,
-        "longitude": -77.0850,
-        "azimuth_degrees": 310,
-        "beamwidth_degrees": 60,
-        "cell_radius_meters": 950,
-        "location_provenance": "VERIFIED LOCATION",
-        "provenance_details": "Court-Authorized Law Enforcement Tower Extracted Log",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 31433,
-        "case_id": "7498",
-        "subject_code": "7498 VoLTE",
-        "subject_label": "Secondary Subject (Orange)",
-        "target_number": "5712747498",
-        "recipient_number": "+1 703 555 0831",
-        "start_time": "2/25/2026 2:12:57 PM",
-        "created_time": "2/25/2026 9:12:56 AM",
-        "duration_str": "00:00:11",
-        "duration_seconds": 11,
-        "direction": "incoming",
-        "first_tower": "3102604f160e44704",
-        "last_tower": "3102604f160e44704",
-        "latitude": 38.8150,
-        "longitude": -77.0850,
-        "azimuth_degrees": 310,
-        "beamwidth_degrees": 60,
-        "cell_radius_meters": 950,
-        "location_provenance": "VERIFIED LOCATION",
-        "provenance_details": "Court-Authorized Law Enforcement Tower Extracted Log",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
-    },
-    {
-        "ref_number": 31432,
-        "case_id": "7498",
-        "subject_code": "7498 VoLTE",
-        "subject_label": "Secondary Subject (Orange)",
-        "target_number": "5712747498",
-        "recipient_number": "+1 703 555 0831",
-        "start_time": "2/25/2026 2:12:28 PM",
-        "created_time": "2/25/2026 9:12:28 AM",
-        "duration_str": "00:00:16",
-        "duration_seconds": 16,
-        "direction": "incoming",
-        "first_tower": "3102604f160e44704",
-        "last_tower": "3102604f160e44704",
-        "latitude": 38.8150,
-        "longitude": -77.0850,
-        "azimuth_degrees": 310,
-        "beamwidth_degrees": 60,
-        "cell_radius_meters": 950,
-        "location_provenance": "VERIFIED LOCATION",
-        "provenance_details": "Court-Authorized Law Enforcement Tower Extracted Log",
-        "associated_evidence_id": None,
-        "associated_case_code": None,
-        "voice_authenticity": None,
-        "scam_risk": "LOW RISK"
+        "voice_authenticity": "Likely Synthetic (78%)",
+        "scam_risk": "HIGH RISK"
     }
 ]
 
@@ -474,7 +267,7 @@ def query_calls(
         rec = dict(record)
         
         # Case filter
-        if case_id and rec["case_id"] != case_id:
+        if case_id and case_id != "ALL" and rec["case_id"] != case_id:
             continue
             
         # Target number filter
@@ -484,7 +277,7 @@ def query_calls(
         # Text search
         if search:
             s_lower = search.lower()
-            target_str = f"{rec['ref_number']} {rec['case_id']} {rec['target_number']} {rec['first_tower']}".lower()
+            target_str = f"{rec['ref_number']} {rec['case_id']} {rec['target_number']} {rec['first_tower']} {rec.get('event_id', '')} {rec.get('approximate_address', '')}".lower()
             if s_lower not in target_str:
                 continue
                 
@@ -496,7 +289,6 @@ def query_calls(
                 if dist > radius_meters:
                     continue
             else:
-                # Exclude records without coordinates from geographic radius filter
                 continue
         elif center_lat is not None and center_lng is not None and rec["latitude"] is not None and rec["longitude"] is not None:
             dist = haversine_distance_meters(center_lat, center_lng, rec["latitude"], rec["longitude"])
@@ -514,6 +306,67 @@ def get_call_by_ref(ref_number: int) -> Optional[Dict[str, Any]]:
 
 def get_call_by_evidence_id(evidence_id: str) -> Optional[Dict[str, Any]]:
     for record in CALL_RECORDS_DB:
-        if record.get("associated_evidence_id") == evidence_id:
+        if record.get("associated_evidence_id") == evidence_id or record.get("event_id") == evidence_id:
             return dict(record)
     return None
+
+def get_call_by_event_id(event_id: str) -> Optional[Dict[str, Any]]:
+    for record in CALL_RECORDS_DB:
+        if record.get("event_id") == event_id or record.get("associated_evidence_id") == event_id:
+            return dict(record)
+    return None
+
+def attach_consent_location(event_id: str, lat: float, lon: float, accuracy_meters: float, address: str) -> Dict[str, Any]:
+    """
+    Attaches verified complainant GPS consent coordinates to an event record.
+    """
+    for record in CALL_RECORDS_DB:
+        if record.get("event_id") == event_id or record.get("associated_evidence_id") == event_id:
+            record["latitude"] = lat
+            record["longitude"] = lon
+            record["accuracy_meters"] = int(accuracy_meters)
+            record["cell_radius_meters"] = int(accuracy_meters)
+            record["source_type"] = "CONSENT_LINK_GPS"
+            record["source_badge"] = "Complainant GPS Consent Link"
+            record["approximate_address"] = address
+            record["location_provenance"] = "VERIFIED LOCATION"
+            record["provenance_details"] = "Complainant opened secure verification link and consented to share device GPS coordinates."
+            record["legal_basis"] = "Complainant Informed In-Browser Consent (HTML5 Geolocation API)"
+            return dict(record)
+            
+    # If not found in static list, create a dynamic call entry
+    new_rec = {
+        "ref_number": 2000 + len(CALL_RECORDS_DB),
+        "event_id": event_id,
+        "file_hash": "dynamic_consent_gps_hash",
+        "case_id": "7502",
+        "subject_code": "Consent GPS",
+        "subject_label": "Complainant Verified",
+        "target_number": "5712747502",
+        "recipient_number": "+1 202 555 0144",
+        "start_time": datetime.datetime.utcnow().strftime("%m/%d/%Y %I:%M:%S %p"),
+        "created_time": datetime.datetime.utcnow().strftime("%m/%d/%Y %I:%M:%S %p"),
+        "duration_str": "00:00:30",
+        "duration_seconds": 30,
+        "direction": "incoming",
+        "first_tower": "CONSENT_GPS",
+        "last_tower": "CONSENT_GPS",
+        "latitude": lat,
+        "longitude": lon,
+        "azimuth_degrees": None,
+        "beamwidth_degrees": None,
+        "cell_radius_meters": int(accuracy_meters),
+        "accuracy_meters": int(accuracy_meters),
+        "source_type": "CONSENT_LINK_GPS",
+        "source_badge": "Complainant GPS Consent Link",
+        "approximate_address": address,
+        "location_provenance": "VERIFIED LOCATION",
+        "provenance_details": "Complainant opened secure verification link and consented to share device GPS coordinates.",
+        "legal_basis": "Complainant Informed In-Browser Consent (HTML5 Geolocation API)",
+        "associated_evidence_id": event_id,
+        "associated_case_code": f"Case #{event_id}",
+        "voice_authenticity": "Analysis Active",
+        "scam_risk": "REVIEW REQUIRED"
+    }
+    CALL_RECORDS_DB.append(new_rec)
+    return new_rec

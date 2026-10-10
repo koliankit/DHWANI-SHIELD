@@ -72,34 +72,34 @@ export const TranscriptPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-bg-card rounded-2xl p-5 border border-border-subtle shadow-md space-y-4">
+    <div className="bg-[#141a1d] rounded-2xl p-5 border border-[#25323a] shadow-md space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#25323a]">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-accent-electric">
+          <div className="w-8 h-8 rounded-lg bg-[#12312f] border border-[#2ec4b6]/30 flex items-center justify-center text-[#2ec4b6]">
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[#d6e1e5] tracking-tight flex items-center gap-2">
               Recognized Speech Transcript
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-bg-surface text-slate-300 border border-border-subtle font-normal">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1a2327] text-[#86989f] border border-[#25323a] font-normal">
                 {segments.length} turns
               </span>
             </h3>
-            <p className="text-[11px] text-slate-400">Time-aligned dialogue with fraud keyword highlights</p>
+            <p className="text-[11px] text-[#86989f]">Time-aligned dialogue with fraud keyword highlights</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Search Bar */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-[#86989f] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search transcript..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-bg-deep rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 border border-border-subtle focus:outline-none focus:border-accent-blue w-36 sm:w-48 placeholder:text-slate-400"
+              className="bg-[#0d1113] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#d6e1e5] border border-[#25323a] focus:outline-none focus:border-[#2ec4b6] w-36 sm:w-48 placeholder:text-[#86989f]"
             />
           </div>
 
@@ -108,8 +108,8 @@ export const TranscriptPanel: React.FC<Props> = ({
             onClick={() => setShowTimestamps(!showTimestamps)}
             className={`p-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors ${
               showTimestamps
-                ? 'bg-accent-blue/15 border-accent-blue/40 text-accent-electric'
-                : 'bg-bg-surface border-border-subtle text-slate-400'
+                ? 'bg-[#12312f] border-[#2ec4b6]/50 text-[#2ec4b6]'
+                : 'bg-[#1a2327] border-[#25323a] text-[#86989f]'
             }`}
             title="Toggle Timestamps"
           >
@@ -120,10 +120,10 @@ export const TranscriptPanel: React.FC<Props> = ({
           <button
             onClick={handleCopy}
             disabled={!fullTranscript}
-            className="p-1.5 rounded-lg bg-bg-surface hover:bg-bg-cardHover border border-border-subtle text-slate-300 transition-colors"
+            className="p-1.5 rounded-lg bg-[#1a2327] hover:bg-[#25323a] border border-[#25323a] text-[#d6e1e5] transition-colors"
             title="Copy full transcript"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-[#2ec4b6]" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
@@ -131,8 +131,8 @@ export const TranscriptPanel: React.FC<Props> = ({
       {/* Transcript Content */}
       <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
         {isAnalyzing ? (
-          <div className="py-8 text-center text-slate-400 space-y-2">
-            <div className="animate-spin w-6 h-6 border-2 border-accent-blue border-t-transparent rounded-full mx-auto"></div>
+          <div className="py-8 text-center text-[#86989f] space-y-2">
+            <div className="animate-spin w-6 h-6 border-2 border-[#2ec4b6] border-t-transparent rounded-full mx-auto"></div>
             <p className="text-xs">Transcribing and parsing acoustic phonemes...</p>
           </div>
         ) : filteredSegments.length > 0 ? (
@@ -141,45 +141,45 @@ export const TranscriptPanel: React.FC<Props> = ({
               key={seg.id}
               className={`rounded-xl p-3 border transition-colors ${
                 seg.has_scam_flag
-                  ? 'bg-rose-950/20 border-rose-900/40'
-                  : 'bg-bg-deep/60 border-border-subtle/70'
+                  ? 'bg-[#e5534b]/10 border-[#e5534b]/30'
+                  : 'bg-[#0d1113] border-[#25323a]'
               }`}
             >
               <div className="flex items-center justify-between text-[11px] mb-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-200">{seg.speaker}</span>
+                  <span className="font-semibold text-[#d6e1e5]">{seg.speaker}</span>
                   {seg.has_scam_flag && (
-                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#e5534b]/20 text-[#e5534b] border border-[#e5534b]/40">
                       FLAGGED
                     </span>
                   )}
                 </div>
                 {showTimestamps && (
-                  <span className="font-mono text-slate-400 text-[10px]">
+                  <span className="font-mono text-[#86989f] text-[10px]">
                     [{formatTimestamp(seg.start)} - {formatTimestamp(seg.end)}]
                   </span>
                 )}
               </div>
 
-              <div className="text-xs text-slate-300 leading-relaxed font-sans">
+              <div className="text-xs text-[#d6e1e5] leading-relaxed font-sans">
                 {renderHighlightedText(seg.text, seg.flagged_terms)}
               </div>
             </div>
           ))
         ) : (
-          <div className="py-8 text-center text-slate-400 text-xs">
+          <div className="py-8 text-center text-[#86989f] text-xs">
             {searchTerm ? 'No segments match search query.' : 'Upload or select audio to view transcription.'}
           </div>
         )}
       </div>
 
       {/* Legend */}
-      <div className="pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[11px] text-slate-400">
+      <div className="pt-2 border-t border-[#25323a] flex items-center justify-between text-[11px] text-[#86989f]">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-2.5 h-2.5 rounded bg-rose-500/30 border border-rose-500/50"></span>
+          <span className="inline-block w-2.5 h-2.5 rounded bg-[#e5534b]/30 border border-[#e5534b]/50"></span>
           <span>Red Highlights: Predatory keywords (OTP, UPI demand, urgency)</span>
         </div>
-        <span className="font-mono text-[10px] text-slate-400">STT Model: RAKSHAM Neural v3.0</span>
+        <span className="font-mono text-[10px] text-[#86989f]">STT Model: RAKSHAM Neural v3.0</span>
       </div>
     </div>
   );

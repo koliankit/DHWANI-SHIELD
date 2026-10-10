@@ -25,11 +25,11 @@ export const AnalysisProgress: React.FC<Props> = ({ currentStage, hasFailed, fai
   };
 
   return (
-    <div className="bg-bg-card rounded-2xl p-4 border border-border-subtle shadow-md">
+    <div className="bg-[#141a1d] rounded-2xl p-4 border border-[#25323a] shadow-md">
       <div className="flex items-center justify-between mb-3 px-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Analysis Pipeline</span>
-          <span className="text-[10px] font-mono text-slate-400">
+          <span className="text-xs font-bold text-[#d6e1e5] uppercase tracking-wider font-mono">Analysis Pipeline</span>
+          <span className="text-[10px] font-mono text-[#86989f]">
             {currentStage === 0
               ? 'Ready'
               : currentStage >= 5
@@ -38,7 +38,7 @@ export const AnalysisProgress: React.FC<Props> = ({ currentStage, hasFailed, fai
           </span>
         </div>
         {hasFailed && failureMessage && (
-          <span className="text-xs text-rose-400 font-medium flex items-center gap-1">
+          <span className="text-xs text-[#e5534b] font-medium flex items-center gap-1 font-mono">
             <AlertCircle className="w-3.5 h-3.5" />
             {failureMessage}
           </span>
@@ -55,32 +55,32 @@ export const AnalysisProgress: React.FC<Props> = ({ currentStage, hasFailed, fai
               key={step.id}
               className={`rounded-xl p-3 border transition-all duration-200 flex items-start gap-3 relative ${
                 state === 'completed'
-                  ? 'bg-bg-deep/80 border-emerald-900/40 text-slate-200'
+                  ? 'bg-[#12312f]/40 border-[#2ec4b6]/40 text-[#d6e1e5]'
                   : state === 'running'
-                  ? 'bg-accent-blue/10 border-accent-blue/50 text-white shadow-glow-blue'
+                  ? 'bg-[#12312f] border-[#2ec4b6] text-[#2ec4b6] shadow-sm'
                   : state === 'failed'
-                  ? 'bg-rose-950/40 border-rose-800/50 text-rose-300'
-                  : 'bg-bg-deep/40 border-border-subtle/60 text-slate-400'
+                  ? 'bg-[#e5534b]/15 border-[#e5534b]/50 text-[#e5534b]'
+                  : 'bg-[#0d1113] border-[#25323a] text-[#86989f]'
               }`}
             >
               <div className="mt-0.5 shrink-0">
-                {state === 'completed' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-                {state === 'running' && <Loader2 className="w-4 h-4 text-accent-electric animate-spin" />}
-                {state === 'failed' && <AlertCircle className="w-4 h-4 text-rose-400" />}
-                {state === 'pending' && <Circle className="w-4 h-4 text-slate-400" />}
+                {state === 'completed' && <CheckCircle2 className="w-4 h-4 text-[#2ec4b6]" />}
+                {state === 'running' && <Loader2 className="w-4 h-4 text-[#2ec4b6] animate-spin" />}
+                {state === 'failed' && <AlertCircle className="w-4 h-4 text-[#e5534b]" />}
+                {state === 'pending' && <Circle className="w-4 h-4 text-[#86989f]" />}
               </div>
 
               <div className="overflow-hidden">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold leading-tight truncate">{step.label}</span>
                 </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5 leading-tight">{step.desc}</p>
+                <p className="text-[10px] text-[#86989f] truncate mt-0.5 leading-tight">{step.desc}</p>
               </div>
 
               {/* Progress bar connector */}
               {idx < steps.length - 1 && (
                 <div className="hidden sm:block absolute -right-2 top-1/2 -translate-y-1/2 z-10">
-                  <span className="text-slate-400 text-xs">›</span>
+                  <span className="text-[#86989f] text-xs">›</span>
                 </div>
               )}
             </div>
