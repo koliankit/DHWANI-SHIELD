@@ -47,6 +47,7 @@ import { CallRecord } from '../../types';
 import { api } from '../../services/api';
 import { DEFAULT_GEOSPATIAL_CALLS } from '../../data/mockGeospatialCalls';
 import { telecomAudioEngine } from '../../services/telecomAudioEngine';
+import { realTimeTelecomService, RealTimeLookupResult } from '../../services/realTimeTelecomService';
 
 interface Props {
   selectedCallRef: number | null;
@@ -358,6 +359,8 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
   const [searchFeedback, setSearchFeedback] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [isSearchSuggestionsOpen, setIsSearchSuggestionsOpen] = useState<boolean>(false);
+  const [realTimeIntercept, setRealTimeIntercept] = useState<RealTimeLookupResult | null>(null);
+  const [isCopiedCoords, setIsCopiedCoords] = useState<boolean>(false);
 
   // Radar & Track Animation State
   const [isRadarAnimationActive, setIsRadarAnimationActive] = useState<boolean>(true);
@@ -706,230 +709,33 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       return;
     }
 
-    // 2. User entered ANY mobile number (with + or 7+ digits)
-    if (raw.includes('+') || digitsOnly.length >= 7) {
-      let hash = 0;
-      for (let i = 0; i < digitsOnly.length; i++) {
-        hash = (hash * 31 + digitsOnly.charCodeAt(i)) & 0xffffffff;
-      }
-      const absHash = Math.abs(hash);
-
-      let baseLat = 38.8048;
-      let baseLng = -77.0469;
-      let countryName = 'United States';
-      let carrierName = 'AT&T FirstNet Emergency Core';
-      let countryPrefix = '+1';
-      let approxCity = 'Alexandria / Washington Metro';
-
-      if (raw.startsWith('+91') || (digitsOnly.length === 10 && /^[6-9]/.test(digitsOnly))) {
-        countryName = 'India';
-        countryPrefix = '+91';
-        carrierName = absHash % 2 === 0 ? 'Bharti Airtel Cyber Defense Cell' : 'Reliance Jio 5G SA Core';
-        if (absHash % 3 === 0) {
-          baseLat = 28.6139; // New Delhi
-          baseLng = 77.2090;
-          approxCity = 'Connaught Place / New Delhi NCR';
-        } else if (absHash % 3 === 1) {
-          baseLat = 19.0760; // Mumbai
-          baseLng = 72.8777;
-          approxCity = 'Bandra Kurla Complex, Mumbai';
-        } else {
-          baseLat = 12.9716; // Bengaluru
-          baseLng = 77.5946;
-          approxCity = 'MG Road / Electronic City, Bengaluru';
-        }
-      } else if (raw.startsWith('+44')) {
-        countryName = 'United Kingdom';
-        countryPrefix = '+44';
-        carrierName = 'EE Telecom / Vodafone UK';
-        baseLat = 51.5074;
-        baseLng = -0.1278;
-        approxCity = 'City of London / Westminster';
-      } else if (raw.startsWith('+81')) {
-        countryName = 'Japan';
-        countryPrefix = '+81';
-        carrierName = 'NTT DOCOMO Forensics';
-        baseLat = 35.6762;
-        baseLng = 139.6503;
-        approxCity = 'Shinjuku / Tokyo';
-      } else {
-        countryName = 'United States';
-        countryPrefix = '+1';
-        carrierName = absHash % 2 === 0 ? 'AT&T FirstNet LTE Band 14' : 'Verizon Frontline Ultra-Wideband';
-        if (absHash % 3 === 0) {
-          baseLat = 38.8048;
-          baseLng = -77.0469;
-          approxCity = 'Alexandria / Pentagon Corridor, VA';
-        } else if (absHash % 3 === 1) {
-          baseLat = 40.7128;
-          baseLng = -74.0060;
-          approxCity = 'Manhattan Financial District, New York';
-        } else {
-          baseLat = 37.7749;
-          baseLng = -122.4194;
-          approxCity = 'Market St Corridor, San Francisco, CA';
-        }
-      }
-
-      const latOffset = ((absHash % 100) - 50) * 0.00018;
-      const lngOffset = (((absHash >> 3) % 100) - 50) * 0.00018;
-      const targetLat = +(baseLat + latOffset).toFixed(6);
-      const targetLng = +(baseLng + lngOffset).toFixed(6);
-      const azimuth = (absHash * 45) % 360;
-      const towerId = `TWR-${countryPrefix.replace('+', '')}-${(absHash % 9000 + 1000)}`;
-      const newRef = 9000 + (absHash % 900);
-
-      const dynamicCall: CallRecord = {
-        ref_number: newRef,
-        event_id: `EVT-INTERCEPT-${newRef}`,
-        file_hash: `hash_${newRef}_dynamic_intercept`,
-        admin_id: activeAdminId,
-        case_id: currentAdmin.caseId,
-        subject_code: `Live Intercept`,
-        subject_label: `Live Subscriber Target (${digitsOnly})`,
-        target_number: raw,
-        recipient_number: '+1 703 555 9999',
-        start_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
-        created_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
-        duration_str: '00:00:32',
-        duration_seconds: 32,
-        direction: 'incoming',
-        first_tower: towerId,
-        last_tower: towerId,
-        latitude: targetLat,
-        longitude: targetLng,
-        azimuth_degrees: azimuth,
-        beamwidth_degrees: 65,
-        cell_radius_meters: 650,
-        accuracy_meters: 250,
-        source_type: 'CARRIER_TOWER_CDR',
-        source_badge: 'Triangulated Carrier Intercept',
-        approximate_address: `Approx. ${approxCity} (${countryName})`,
-        location_provenance: 'ESTIMATED AREA',
-        provenance_details: `Live subscriber intercept locked on ${carrierName}. Azimuth ${azimuth}° · Signal: -74 dBm.`,
-        legal_basis: 'Title III Lawful Intercept / Exigent Intercept Authority',
-        category: 'calls_with_loc'
-      };
-
-      setCalls(prev => [dynamicCall, ...prev]);
-      setActiveRef(newRef);
-      onSelectCallRef(newRef);
+    // 2. REAL-TIME TELECOMMUNICATIONS & GEOLOCATION API LOOKUP
+    try {
+      telecomAudioEngine.playAcousticPing(850, 0.12); // Telephony dialing chirp
+      const result = await realTimeTelecomService.lookupTarget(raw, activeAdminId);
+      
+      // Inject real-time intercepted record into state
+      setCalls(prev => [result.callRecord, ...prev]);
+      setActiveRef(result.callRecord.ref_number);
+      onSelectCallRef(result.callRecord.ref_number);
+      setRealTimeIntercept(result);
       setIsSidePanelOpen(true);
 
+      // Smoothly fly map camera directly to verified coordinates
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { duration: 1.8 });
+        mapInstanceRef.current.flyTo([result.latitude, result.longitude], 16, { duration: 1.8 });
       }
 
       telecomAudioEngine.playRadarLockPing();
-      setSearchFeedback(`⚡ TARGET ACQUIRED & LIVE INTERCEPT LOCKED: Subscriber ${raw} · Carrier: ${carrierName} · Cell Tower: ${towerId} (Azimuth: ${azimuth}°) · Location: ${approxCity} · Accuracy: ±250m`);
+      setSearchFeedback(
+        `⚡ REAL-TIME INTERCEPT VERIFIED: ${result.formattedNumber} · Region: ${result.stateOrCircle} (${result.cityOrDistrict}) · Coordinates: [${result.latitude.toFixed(6)}, ${result.longitude.toFixed(6)}] · Carrier: ${result.carrier} · Source: ${result.apiSource} (${result.lookupLatencyMs}ms)`
+      );
+    } catch (err: any) {
+      console.error('Real-time telecom lookup error:', err);
+      setSearchFeedback(`⚠️ Real-time telecom lookup encountered error: ${err?.message || 'Check network connection'}`);
+    } finally {
       setIsSearching(false);
-      return;
     }
-
-    // 3. Location / City / Address Geocoding
-    const CITIES: Record<string, [number, number]> = {
-      'new york': [40.7128, -74.0060],
-      'nyc': [40.7128, -74.0060],
-      'washington': [38.9072, -77.0369],
-      'washington dc': [38.9072, -77.0369],
-      'alexandria': [38.8048, -77.0469],
-      'alexandria va': [38.8048, -77.0469],
-      'san francisco': [37.7749, -122.4194],
-      'london': [51.5074, -0.1278],
-      'mumbai': [19.0760, 72.8777],
-      'delhi': [28.6139, 77.2090],
-      'new delhi': [28.6139, 77.2090],
-      'bangalore': [12.9716, 77.5946],
-      'bengaluru': [12.9716, 77.5946],
-      'tokyo': [35.6762, 139.6503],
-      'paris': [48.8566, 2.3522],
-      'berlin': [52.5200, 13.4050],
-      'dubai': [25.2048, 55.2708],
-      'sydney': [-33.8688, 151.2093],
-      'singapore': [1.3521, 103.8198]
-    };
-
-    let targetCoords: [number, number] | null = null;
-    let locationLabel = raw;
-
-    for (const [key, coords] of Object.entries(CITIES)) {
-      if (qLower.includes(key)) {
-        targetCoords = coords;
-        locationLabel = key.toUpperCase();
-        break;
-      }
-    }
-
-    const coordMatch = raw.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
-    if (coordMatch) {
-      targetCoords = [parseFloat(coordMatch[1]), parseFloat(coordMatch[2])];
-      locationLabel = `Coordinates [${targetCoords[0]}, ${targetCoords[1]}]`;
-    }
-
-    if (!targetCoords) {
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(raw)}&limit=1`);
-        const json = await res.json();
-        if (json && json.length > 0) {
-          targetCoords = [parseFloat(json[0].lat), parseFloat(json[0].lon)];
-          locationLabel = json[0].display_name.split(',')[0];
-        }
-      } catch (e) {
-        console.warn('Geocoding error', e);
-      }
-    }
-
-    if (targetCoords) {
-      const [cLat, cLng] = targetCoords;
-      const newRef = 9500 + Math.floor(Math.random() * 400);
-      const dynamicCall: CallRecord = {
-        ref_number: newRef,
-        event_id: `EVT-GEO-${newRef}`,
-        file_hash: `hash_${newRef}_geocoded`,
-        admin_id: activeAdminId,
-        case_id: currentAdmin.caseId,
-        subject_code: `Geolocated Site`,
-        subject_label: `Geolocated Search Target (${locationLabel})`,
-        target_number: '+1 800 555 ' + (newRef % 1000).toString().padStart(4, '0'),
-        recipient_number: '+1 703 555 9999',
-        start_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
-        created_time: '10/10/2026 ' + new Date().toLocaleTimeString(),
-        duration_str: '00:00:15',
-        duration_seconds: 15,
-        direction: 'incoming',
-        first_tower: `TWR-GEO-${newRef}`,
-        last_tower: `TWR-GEO-${newRef}`,
-        latitude: cLat,
-        longitude: cLng,
-        azimuth_degrees: 0,
-        beamwidth_degrees: 360,
-        cell_radius_meters: 1000,
-        accuracy_meters: 350,
-        source_type: 'CARRIER_TOWER_CDR',
-        source_badge: 'Geolocated Tower Search',
-        approximate_address: `${locationLabel} Real-World Grid`,
-        location_provenance: 'ESTIMATED AREA',
-        provenance_details: `OpenStreetMap verified real-world geocoding at [${cLat}, ${cLng}].`,
-        legal_basis: 'Real-World OpenStreetMap Geolocation Intercept',
-        category: 'calls_with_loc'
-      };
-
-      setCalls(prev => [dynamicCall, ...prev]);
-      setActiveRef(newRef);
-      onSelectCallRef(newRef);
-      setIsSidePanelOpen(true);
-
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo([cLat, cLng], 16, { duration: 1.8 });
-      }
-
-      telecomAudioEngine.playRadarLockPing();
-      setSearchFeedback(`📍 LOCATION ACQUIRED & LOCKED: "${locationLabel}" at [${cLat.toFixed(5)}, ${cLng.toFixed(5)}] · Street-Level Real Map Camera Deployed`);
-    } else {
-      setSearchFeedback(`No exact match found for "${raw}". Try entering a phone number (+1..., +91...), city name (New York, Mumbai, London...), or Case ID (7502).`);
-    }
-
-    setIsSearching(false);
   };
 
   // Initialize and update Leaflet Map
@@ -1771,6 +1577,144 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+              </div>
+            )}
+
+            {/* ================= REAL-TIME TELECOM INTERCEPT INTELLIGENCE HUD ================= */}
+            {realTimeIntercept && (
+              <div className="mt-2.5 rounded-xl border p-3.5 shadow-2xl font-mono text-xs transition-all animate-fadeIn bg-gradient-to-r from-[#0d1e20] via-[#0b171a] to-[#121c20] border-[#2ec4b6] text-[#d6e1e5]">
+                
+                {/* Header row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2ec4b6]/30 pb-2.5 mb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <span className="font-bold text-white text-sm tracking-wide flex items-center gap-1.5">
+                      <Radio className="w-4 h-4 text-[#2ec4b6]" />
+                      <span>REAL-TIME SUBSCRIBER INTERCEPT VERIFIED</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#2ec4b6]/20 text-[#2ec4b6] border border-[#2ec4b6]/40 uppercase">
+                      {realTimeIntercept.networkType}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-[#86989f]">
+                      API Latency: <span className="text-emerald-400 font-bold">{realTimeIntercept.lookupLatencyMs}ms</span>
+                    </span>
+                    <button
+                      onClick={() => setRealTimeIntercept(null)}
+                      className="p-1 rounded text-[#86989f] hover:text-white hover:bg-[#25323a] transition-all"
+                      title="Dismiss Intercept Card"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4-Column Intelligence Data Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                  {/* 1. Target Number & Line Type */}
+                  <div className="p-2.5 rounded-lg bg-[#0b1315]/85 border border-[#25323a]">
+                    <div className="text-[10px] text-[#86989f] uppercase font-bold flex items-center gap-1 mb-1">
+                      <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />
+                      <span>Subscriber Target</span>
+                    </div>
+                    <div className="text-[#2ec4b6] font-bold text-sm truncate">
+                      {realTimeIntercept.formattedNumber}
+                    </div>
+                    <div className="text-[10px] text-[#86989f] mt-0.5">
+                      {realTimeIntercept.lineType} · Dial: +{realTimeIntercept.countryCallingCode}
+                    </div>
+                  </div>
+
+                  {/* 2. Region & Telecom Circle */}
+                  <div className="p-2.5 rounded-lg bg-[#0b1315]/85 border border-[#25323a]">
+                    <div className="text-[10px] text-[#86989f] uppercase font-bold flex items-center gap-1 mb-1">
+                      <Compass className="w-3 h-3 text-[#f0a73a]" />
+                      <span>Region / Telecom Circle</span>
+                    </div>
+                    <div className="text-[#f0a73a] font-bold truncate">
+                      {realTimeIntercept.stateOrCircle}
+                    </div>
+                    <div className="text-[10px] text-[#86989f] mt-0.5 truncate">
+                      {realTimeIntercept.cityOrDistrict}, {realTimeIntercept.countryName}
+                    </div>
+                  </div>
+
+                  {/* 3. Verified Geographic Coordinates */}
+                  <div className="p-2.5 rounded-lg bg-[#0b1315]/85 border border-[#25323a]">
+                    <div className="text-[10px] text-[#86989f] uppercase font-bold flex items-center gap-1 mb-1">
+                      <MapPin className="w-3 h-3 text-emerald-400" />
+                      <span>Live Coordinates</span>
+                    </div>
+                    <div className="text-emerald-400 font-bold truncate font-mono text-xs">
+                      {realTimeIntercept.latitude.toFixed(6)}, {realTimeIntercept.longitude.toFixed(6)}
+                    </div>
+                    <div className="text-[10px] text-[#86989f] mt-0.5 flex items-center justify-between">
+                      <span>Accuracy: ±{realTimeIntercept.accuracyMeters}m</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${realTimeIntercept.latitude}, ${realTimeIntercept.longitude}`);
+                          setIsCopiedCoords(true);
+                          setTimeout(() => setIsCopiedCoords(false), 2000);
+                        }}
+                        className="text-[9px] px-1.5 py-0.5 rounded bg-[#12312f] text-[#2ec4b6] hover:bg-[#2ec4b6] hover:text-[#0d1113] transition-all font-bold"
+                        title="Copy coordinates to clipboard"
+                      >
+                        {isCopiedCoords ? 'Copied!' : 'Copy Coords'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Carrier & Cell Tower Grid */}
+                  <div className="p-2.5 rounded-lg bg-[#0b1315]/85 border border-[#25323a]">
+                    <div className="text-[10px] text-[#86989f] uppercase font-bold flex items-center gap-1 mb-1">
+                      <ShieldCheck className="w-3 h-3 text-[#8fb3c9]" />
+                      <span>Carrier & CGI Routing</span>
+                    </div>
+                    <div className="text-[#8fb3c9] font-bold truncate">
+                      {realTimeIntercept.carrier}
+                    </div>
+                    <div className="text-[10px] text-[#86989f] mt-0.5 truncate font-mono">
+                      CGI: {realTimeIntercept.cgi} · Az: {realTimeIntercept.azimuthDegrees}°
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Address & Action Bar */}
+                <div className="mt-2.5 pt-2 border-t border-[#25323a] flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[#86989f] min-w-0">
+                    <Globe className="w-3.5 h-3.5 text-[#2ec4b6] shrink-0" />
+                    <span className="text-[#2ec4b6] font-semibold shrink-0">Geocoded Location:</span>
+                    <span className="truncate text-[#d6e1e5]">{realTimeIntercept.displayName}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        if (mapInstanceRef.current) {
+                          mapInstanceRef.current.flyTo([realTimeIntercept.latitude, realTimeIntercept.longitude], 17, { duration: 1.5 });
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded bg-[#12312f] hover:bg-[#18262b] border border-[#2ec4b6]/60 text-[#2ec4b6] font-bold text-[11px] transition-all flex items-center gap-1 shadow-sm"
+                    >
+                      <Crosshair className="w-3 h-3" />
+                      <span>Lock Radar ({realTimeIntercept.latitude.toFixed(4)}, {realTimeIntercept.longitude.toFixed(4)})</span>
+                    </button>
+
+                    <button
+                      onClick={() => onNavigateToVoiceForensics(currentAdmin.caseRef, realTimeIntercept.callRecord.associated_evidence_id || undefined)}
+                      className="px-3 py-1 rounded bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-[11px] transition-all flex items-center gap-1 shadow-md hover:scale-[1.02]"
+                    >
+                      <Volume2 className="w-3 h-3" />
+                      <span>Analyze Voice Evidence →</span>
+                    </button>
+                  </div>
+                </div>
+
               </div>
             )}
           </div>
