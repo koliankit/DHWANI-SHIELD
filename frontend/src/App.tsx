@@ -121,8 +121,34 @@ export const App: React.FC = () => {
     setActiveTab('geospatial');
   };
 
-  const handleNavigateToVoiceForensics = (caseCode: string, evidenceId?: string) => {
+  const handleNavigateToVoiceForensics = async (caseCode: string, evidenceId?: string) => {
     setActiveTab('voice_analysis');
+    setIsAnalyzing(true);
+    setAnalysisStage(1);
+    
+    const t1 = setTimeout(() => setAnalysisStage(2), 200);
+    const t2 = setTimeout(() => setAnalysisStage(3), 400);
+    const t3 = setTimeout(() => setAnalysisStage(4), 600);
+
+    try {
+      const sampleKey = evidenceId || 'case-v0884';
+      const result = await api.runQuickTest(sampleKey);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+
+      if (result) {
+        result.event_id = evidenceId ? `EVT-${evidenceId.toUpperCase()}` : result.event_id;
+        result.case_code = caseCode;
+        setAnalysisData(result);
+        setActiveExampleId(sampleKey);
+        setAnalysisStage(5);
+      }
+    } catch (err) {
+      console.warn('Voice forensics load:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleFileSelect = (file: File) => {

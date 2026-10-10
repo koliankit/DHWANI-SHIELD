@@ -70,6 +70,170 @@ export type QueryCategoryType =
   | 'social_media'
   | 'audit_trail';
 
+export interface AdminProfile {
+  id: number;
+  name: string;
+  code: string;
+  unit: string;
+  badge: string;
+  color: string;
+  targetNumber: string;
+  caseId: string;
+  situation: string;
+  description: string;
+  evidenceId: string;
+  caseCode: string;
+  label: string;
+  caseRef: string;
+  role: string;
+  defaultCategory?: QueryCategoryType;
+  primaryLat?: number;
+  primaryLng?: number;
+}
+
+export const ADMIN_PROFILES: AdminProfile[] = [
+  {
+    id: 1,
+    name: 'Admin 1',
+    code: 'CYBER-FRAUD',
+    unit: 'Cyber Fraud & Deepfake Impersonation Desk',
+    badge: 'AI CLONE',
+    color: '#2ec4b6',
+    targetNumber: '5712747502',
+    caseId: '7502',
+    situation: 'Corporate Executive AI Voice Cloning (Case #V-0884)',
+    description: 'Neural vocoder voice cloning demanding urgent wire transfers. AASIST flagged 89% synthetic probability.',
+    evidenceId: 'case-v0884',
+    caseCode: 'Case #V-0884',
+    label: 'Admin 1',
+    caseRef: 'Case #V-0884',
+    role: 'Cyber Fraud & Deepfake Desk',
+    defaultCategory: 'audio_queries',
+    primaryLat: 38.7985,
+    primaryLng: -77.1062
+  },
+  {
+    id: 2,
+    name: 'Admin 2',
+    code: 'ANTI-EXTORTION',
+    unit: 'VIP Anti-Extortion & Kidnap Spoofing Taskforce',
+    badge: 'SPOOF DETECT',
+    color: '#f0a73a',
+    targetNumber: '5712746057',
+    caseId: '6057',
+    situation: 'Distressed Family Member Voice Spoofing (Case #V-0885)',
+    description: 'Emergency extortion call impersonating a distressed family member. ECAPA-TDNN acoustic divergence verified.',
+    evidenceId: 'case-v0885',
+    caseCode: 'Case #V-0885',
+    label: 'Admin 2',
+    caseRef: 'Case #V-0885',
+    role: 'Anti-Extortion Taskforce',
+    defaultCategory: 'audio_queries',
+    primaryLat: 38.8092,
+    primaryLng: -77.1145
+  },
+  {
+    id: 3,
+    name: 'Admin 3',
+    code: 'TELECOM-ROAM',
+    unit: 'Telecom Intercept & Multi-Tower Roaming Desk',
+    badge: 'MULTI-TOWER',
+    color: '#8fb3c9',
+    targetNumber: '5712747498',
+    caseId: '7498',
+    situation: 'Burner Phone Roaming & Multiple Sector Handoffs (Case #V-0886)',
+    description: 'Cross-jurisdiction tracking across Arlington, Crystal City, and Pentagon City cell towers.',
+    evidenceId: 'case-v0886',
+    caseCode: 'Case #V-0886',
+    label: 'Admin 3',
+    caseRef: 'Case #V-0886',
+    role: 'Roaming Intercept Desk',
+    defaultCategory: 'calls_with_loc',
+    primaryLat: 38.7890,
+    primaryLng: -77.0980
+  },
+  {
+    id: 4,
+    name: 'Admin 4',
+    code: 'E911-RESCUE',
+    unit: 'E911 Emergency Life-Safety Dispatch Desk',
+    badge: 'GPS VERIFIED',
+    color: '#38bdf8',
+    targetNumber: '5712749110',
+    caseId: '9110',
+    situation: 'Verified Handset Emergency GPS Rapid Rescue (Case #V-9110)',
+    description: 'Life-safety emergency GPS telemetry from handset chip (±15m accuracy) in Washington DC Mall sector.',
+    evidenceId: 'case-v9110',
+    caseCode: 'Case #V-9110',
+    label: 'Admin 4',
+    caseRef: 'Case #V-9110',
+    role: 'E911 Rapid Rescue Desk',
+    defaultCategory: 'calls_with_loc',
+    primaryLat: 38.7962,
+    primaryLng: -77.1215
+  },
+  {
+    id: 5,
+    name: 'Admin 5',
+    code: 'SYNTH-LAB',
+    unit: 'Synthetic Audio & AASIST Forensics Lab',
+    badge: 'AASIST LAB',
+    color: '#a78bfa',
+    targetNumber: '5712748840',
+    caseId: '8840',
+    situation: 'RawNet2 & ECAPA-TDNN Anti-Spoofing Benchmark (Case #V-0887)',
+    description: 'ASVspoof 2021 DF/LA laboratory evaluation detecting high-frequency vocoder phase anomalies (97% deepfake).',
+    evidenceId: 'case-v0887',
+    caseCode: 'Case #V-0887',
+    label: 'Admin 5',
+    caseRef: 'Case #V-0887',
+    role: 'AASIST Forensics Lab',
+    defaultCategory: 'audio_queries',
+    primaryLat: 38.8000,
+    primaryLng: -77.1000
+  },
+  {
+    id: 6,
+    name: 'Admin 6',
+    code: 'SIMBOX-STRIKE',
+    unit: 'SIM Box & Robocall Strike Team',
+    badge: 'ROBOCALL RING',
+    color: '#f87171',
+    targetNumber: '5712743321',
+    caseId: '3321',
+    situation: 'SIM Box Gateway High-Frequency Robocall Blast (Case #V-0888)',
+    description: 'Automated VoIP blast targeting thousands of phone lines simultaneously with synthetic utility fraud script.',
+    evidenceId: 'case-v0888',
+    caseCode: 'Case #V-0888',
+    label: 'Admin 6',
+    caseRef: 'Case #V-0888',
+    role: 'SIM Box Strike Team',
+    defaultCategory: 'calls',
+    primaryLat: 38.8020,
+    primaryLng: -77.1085
+  },
+  {
+    id: 7,
+    name: 'Admin 7',
+    code: 'AUDIT-MASTER',
+    unit: 'Chain-of-Custody & Supervisory Audit Desk',
+    badge: 'AUDIT MASTER',
+    color: '#34d399',
+    targetNumber: '5712740007',
+    caseId: '0007',
+    situation: 'Lawful Court Warrants & SHA-256 Evidence Sealing (Case #V-AUDIT)',
+    description: 'Judicial oversight verifying lawful warrants #ORD-7502 through #ORD-7508 with cryptographic audit logs.',
+    evidenceId: 'case-vaudit',
+    caseCode: 'Case #V-AUDIT',
+    label: 'Admin 7',
+    caseRef: 'Case #V-AUDIT',
+    role: 'Judicial Audit Desk',
+    defaultCategory: 'audit',
+    primaryLat: 38.8055,
+    primaryLng: -77.1040
+  }
+];
+
 export const GeospatialInvestigationView: React.FC<Props> = ({
   selectedCallRef,
   onSelectCallRef,
@@ -78,6 +242,26 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 }) => {
   const [calls, setCalls] = useState<CallRecord[]>(DEFAULT_GEOSPATIAL_CALLS);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeAdminId, setActiveAdminId] = useState<number>(1);
+  const [expandedAdmins, setExpandedAdmins] = useState<Record<number, boolean>>({
+    1: true,
+    2: false,
+    3: false,
+    4: false,
+    5: false,
+    6: false,
+    7: false
+  });
+  const [isTreeExpanded, setIsTreeExpanded] = useState<{ allQueries: boolean; basicQueries: boolean }>({
+    allQueries: true,
+    basicQueries: true
+  });
+
+  const handleToggleAdminExpand = (adminId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedAdmins(prev => ({ ...prev, [adminId]: !prev[adminId] }));
+  };
+
   const [activeQueryCategory, setActiveQueryCategory] = useState<QueryCategoryType>('calls');
   const [activeRef, setActiveRef] = useState<number>(selectedCallRef || DEFAULT_GEOSPATIAL_CALLS[0].ref_number);
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,19 +279,23 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
   const [isRadarAnimationActive, setIsRadarAnimationActive] = useState<boolean>(true);
   const [isPlayingTrack, setIsPlayingTrack] = useState<boolean>(false);
 
-  // Left Tree View State
-  const [isTreeExpanded, setIsTreeExpanded] = useState({
-    allQueries: true,
-    acceptance: true,
-    basicQueries: true
-  });
-
   // Dedicated Side Panel State (keeps map 100% unobstructed)
   const [isSidePanelOpen, setIsSidePanelOpen] = useState<boolean>(true);
 
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
+
+  // Active Admin Profile
+  const currentAdmin = useMemo(() => {
+    return ADMIN_PROFILES.find(a => a.id === activeAdminId) || ADMIN_PROFILES[0];
+  }, [activeAdminId]);
+
+  // Calls filtered by the active Admin (or all if activeAdminId === 0)
+  const adminCalls = useMemo(() => {
+    if (activeAdminId === 0) return calls;
+    return calls.filter(c => !c.admin_id || c.admin_id === activeAdminId);
+  }, [calls, activeAdminId]);
 
   // Sync external prop if it changes
   useEffect(() => {
@@ -126,57 +314,75 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     return () => clearTimeout(timer);
   }, [isSidePanelOpen]);
 
-  // Category counts computed dynamically across all 56 intake records
+  // Category counts computed dynamically for the active Admin
   const categoryCounts = useMemo<Record<QueryCategoryType, number>>(() => {
     return {
-      basic: calls.length,
-      audio_queries: calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity)).length,
-      audit: calls.filter(c => c.category === 'audit').length,
-      calls: calls.filter(c => c.category === 'call' || (!c.category && c.direction)).length,
-      calls_today: calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026')).length,
-      calls_with_loc: calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number').length,
-      mms: calls.filter(c => c.category === 'mms').length,
-      sms: calls.filter(c => c.category === 'sms').length,
-      subs: calls.filter(c => c.category === 'subscriber').length,
-      device: calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY').length,
-      internet: calls.filter(c => c.category === 'internet').length,
-      social_media: calls.filter(c => c.category === 'social_media').length,
-      audit_trail: calls.filter(c => c.category === 'audit').length,
+      basic: adminCalls.length,
+      audio_queries: adminCalls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity)).length,
+      audit: adminCalls.filter(c => c.category === 'audit').length,
+      calls: adminCalls.filter(c => c.category === 'call' || (!c.category && c.direction)).length,
+      calls_today: adminCalls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026')).length,
+      calls_with_loc: adminCalls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number').length,
+      mms: adminCalls.filter(c => c.category === 'mms').length,
+      sms: adminCalls.filter(c => c.category === 'sms').length,
+      subs: adminCalls.filter(c => c.category === 'subscriber').length,
+      device: adminCalls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY').length,
+      internet: adminCalls.filter(c => c.category === 'internet').length,
+      social_media: adminCalls.filter(c => c.category === 'social_media').length,
+      audit_trail: adminCalls.filter(c => c.category === 'audit').length,
     };
-  }, [calls]);
+  }, [adminCalls]);
 
   // Subset of calls matching the active query category
   const categoryCalls = useMemo<CallRecord[]>(() => {
     switch (activeQueryCategory) {
       case 'audio_queries':
-        return calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
+        return adminCalls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
       case 'audit':
-        return calls.filter(c => c.category === 'audit');
+        return adminCalls.filter(c => c.category === 'audit');
       case 'calls':
-        return calls.filter(c => c.category === 'call' || (!c.category && c.direction));
+        return adminCalls.filter(c => c.category === 'call' || (!c.category && c.direction));
       case 'calls_today':
-        return calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
+        return adminCalls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
       case 'calls_with_loc':
-        return calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
+        return adminCalls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
       case 'mms':
-        return calls.filter(c => c.category === 'mms');
+        return adminCalls.filter(c => c.category === 'mms');
       case 'sms':
-        return calls.filter(c => c.category === 'sms');
+        return adminCalls.filter(c => c.category === 'sms');
       case 'subs':
-        return calls.filter(c => c.category === 'subscriber');
+        return adminCalls.filter(c => c.category === 'subscriber');
       case 'device':
-        return calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
+        return adminCalls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
       case 'internet':
-        return calls.filter(c => c.category === 'internet');
+        return adminCalls.filter(c => c.category === 'internet');
       case 'social_media':
-        return calls.filter(c => c.category === 'social_media');
+        return adminCalls.filter(c => c.category === 'social_media');
       case 'audit_trail':
-        return calls.filter(c => c.category === 'audit');
+        return adminCalls.filter(c => c.category === 'audit');
       case 'basic':
       default:
-        return calls;
+        return adminCalls;
     }
-  }, [calls, activeQueryCategory]);
+  }, [adminCalls, activeQueryCategory]);
+
+  // Switch active Admin
+  const handleSelectAdmin = (adminId: number) => {
+    setActiveAdminId(adminId);
+    setExpandedAdmins(prev => ({
+      ...prev,
+      [adminId]: true
+    }));
+    const targetCalls = calls.filter(c => adminId === 0 ? true : c.admin_id === adminId);
+    if (targetCalls.length > 0) {
+      const match = targetCalls.find(c => c.latitude && c.longitude) || targetCalls[0];
+      setActiveRef(match.ref_number);
+      onSelectCallRef(match.ref_number);
+      if (mapInstanceRef.current && match.latitude && match.longitude) {
+        mapInstanceRef.current.panTo([match.latitude, match.longitude], { animate: true });
+      }
+    }
+  };
 
   // Handler for clicking any category node in the tree
   const handleSelectQueryCategory = (cat: QueryCategoryType) => {
@@ -184,42 +390,42 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     let subset: CallRecord[] = [];
     switch (cat) {
       case 'audio_queries':
-        subset = calls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
+        subset = adminCalls.filter(c => !!(c.associated_evidence_id || c.associated_case_code || c.voice_authenticity));
         break;
       case 'audit':
       case 'audit_trail':
-        subset = calls.filter(c => c.category === 'audit');
+        subset = adminCalls.filter(c => c.category === 'audit');
         break;
       case 'calls':
-        subset = calls.filter(c => c.category === 'call' || (!c.category && c.direction));
+        subset = adminCalls.filter(c => c.category === 'call' || (!c.category && c.direction));
         break;
       case 'calls_today':
-        subset = calls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
+        subset = adminCalls.filter(c => (c.category === 'call' || !c.category) && (c.start_time || '').includes('10/10/2026'));
         break;
       case 'calls_with_loc':
-        subset = calls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
+        subset = adminCalls.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number');
         break;
       case 'mms':
-        subset = calls.filter(c => c.category === 'mms');
+        subset = adminCalls.filter(c => c.category === 'mms');
         break;
       case 'sms':
-        subset = calls.filter(c => c.category === 'sms');
+        subset = adminCalls.filter(c => c.category === 'sms');
         break;
       case 'subs':
-        subset = calls.filter(c => c.category === 'subscriber');
+        subset = adminCalls.filter(c => c.category === 'subscriber');
         break;
       case 'device':
-        subset = calls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
+        subset = adminCalls.filter(c => c.category === 'device' || c.source_type === 'HANDSET_EMERGENCY');
         break;
       case 'internet':
-        subset = calls.filter(c => c.category === 'internet');
+        subset = adminCalls.filter(c => c.category === 'internet');
         break;
       case 'social_media':
-        subset = calls.filter(c => c.category === 'social_media');
+        subset = adminCalls.filter(c => c.category === 'social_media');
         break;
       case 'basic':
       default:
-        subset = calls;
+        subset = adminCalls;
         break;
     }
 
@@ -734,78 +940,124 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Hierarchical Query Folder Tree Matching Reference Image 1 */}
+          {/* Hierarchical Query Folder Tree Supporting All 7 Admin Desks */}
           <div className="flex-1 overflow-y-auto p-2 text-xs font-mono space-y-1">
-            
-            {/* Admin 1 Root */}
-            <div>
-              <div className={`flex items-center gap-1.5 px-2 py-1 font-bold rounded cursor-pointer ${
-                isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
-              }`}>
-                <ChevronDown className="w-3 h-3 text-[#86989f]" />
-                <span className="text-[#2ec4b6]">👤 Admin 1</span>
-              </div>
+            {ADMIN_PROFILES.map((admin) => {
+              const isAdminActive = activeAdminId === admin.id;
+              const isExpanded = !!expandedAdmins[admin.id];
+              const countForAdmin = calls.filter(c => c.admin_id === admin.id).length;
 
-              {/* All Queries */}
-              <div className="pl-4 space-y-0.5">
-                <div 
-                  onClick={() => setIsTreeExpanded(prev => ({ ...prev, allQueries: !prev.allQueries }))}
-                  className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
-                    isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {isTreeExpanded.allQueries ? <ChevronDown className="w-3 h-3 text-[#86989f]" /> : <ChevronRight className="w-3 h-3 text-[#86989f]" />}
-                  <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
-                  <span>All Queries</span>
-                </div>
-
-                {isTreeExpanded.allQueries && (
-                  <div className="pl-4 space-y-0.5">
-                    {/* Acceptance */}
-                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
-                      isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+              return (
+                <div key={admin.id} className="rounded mb-1.5 overflow-hidden">
+                  {/* Admin Desk Header */}
+                  <div
+                    onClick={() => handleSelectAdmin(admin.id)}
+                    className={`flex items-center justify-between px-2 py-1.5 font-bold rounded cursor-pointer transition-colors border ${
+                      isAdminActive
+                        ? (isDarkMode 
+                            ? 'bg-[#18262b] border-[#2ec4b6]/80 text-[#2ec4b6] shadow-sm' 
+                            : 'bg-teal-100/70 border-teal-500 text-teal-900')
+                        : (isDarkMode 
+                            ? 'border-transparent text-[#d6e1e5] hover:bg-[#1a2327]' 
+                            : 'border-transparent text-slate-700 hover:bg-slate-100')
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleAdminExpand(admin.id, e)}
+                        className="p-0.5 hover:text-white"
+                        title={isExpanded ? "Collapse Admin Queries" : "Expand Admin Queries"}
+                      >
+                        {isExpanded ? <ChevronDown className="w-3 h-3 text-[#86989f]" /> : <ChevronRight className="w-3 h-3 text-[#86989f]" />}
+                      </button>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: admin.color }} />
+                      <span className="truncate">{admin.label}: {admin.name}</span>
+                    </div>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0 ml-1 ${
+                      isAdminActive
+                        ? (isDarkMode ? 'bg-[#141a1d] text-[#2ec4b6] border border-[#2ec4b6]/50' : 'bg-teal-200 text-teal-900 font-bold')
+                        : (isDarkMode ? 'bg-[#141a1d] text-[#86989f] border border-[#25323a]' : 'bg-slate-200 text-slate-700')
                     }`}>
-                      <ChevronDown className="w-3 h-3 text-[#86989f]" />
-                      <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
-                      <span>Acceptance</span>
-                    </div>
-
-                    {/* Basic Queries */}
-                    <div className="pl-4 space-y-0.5">
-                      <div className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
-                        isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
-                      }`}>
-                        <ChevronDown className="w-3 h-3 text-[#86989f]" />
-                        <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
-                        <span>Basic Queries</span>
-                      </div>
-
-                      {/* Sub-queries */}
-                      <div className="pl-4 space-y-0.5">
-                        {renderTreeItem('audio_queries', 'Audio Queries', <Volume2 className="w-3 h-3 text-[#2ec4b6]" />)}
-                        {renderTreeItem('audit', 'Audit', <ShieldAlert className="w-3 h-3 text-[#f0a73a]" />)}
-                        {renderTreeItem('basic', 'Basic', <Layers className="w-3 h-3 text-[#8fb3c9]" />)}
-                        {renderTreeItem('calls', 'Calls', <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />)}
-                        {renderTreeItem('calls_today', 'Calls today', <Radio className="w-3 h-3 text-[#2ec4b6]" />)}
-                        {renderTreeItem('calls_with_loc', 'Calls with Loc', <MapPin className="w-3 h-3 text-[#2ec4b6]" />)}
-                        {renderTreeItem('mms', 'MMS', <FileText className="w-3 h-3 text-[#f0a73a]" />)}
-                        {renderTreeItem('sms', 'SMS', <FileText className="w-3 h-3 text-[#8fb3c9]" />)}
-                        {renderTreeItem('subs', 'Subs', <Folder className="w-3 h-3 text-[#2ec4b6]" />)}
-                      </div>
-                    </div>
-
-                    {/* Other Branches under Acceptance */}
-                    <div className="space-y-0.5 pt-1">
-                      {renderTreeItem('device', 'Device Queries', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
-                      {renderTreeItem('internet', 'Internet Queries', <Folder className="w-3.5 h-3.5 text-[#8fb3c9]" />)}
-                      {renderTreeItem('social_media', 'Social Media', <Folder className="w-3.5 h-3.5 text-[#f0a73a]" />)}
-                      {renderTreeItem('audit_trail', 'Audit Trail', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
-                    </div>
+                      {countForAdmin}
+                    </span>
                   </div>
-                )}
-              </div>
-            </div>
 
+                  {/* Expanded Queries for this Admin */}
+                  {isExpanded && (
+                    <div className="pl-3 pr-1 pt-1 pb-1.5 space-y-1">
+                      {/* Admin Operational Scenario Brief */}
+                      <div className="px-2 py-1 rounded text-[10px] bg-[#0d1113] border border-[#25323a] text-[#86989f]">
+                        <div className="text-[#2ec4b6] font-semibold truncate">{admin.situation}</div>
+                        <div className="flex items-center justify-between mt-0.5 text-[9px]">
+                          <span>Target: {admin.targetNumber}</span>
+                          <span className="text-[#f0a73a]">{admin.caseRef}</span>
+                        </div>
+                      </div>
+
+                      {/* All Queries Folder */}
+                      <div className="space-y-0.5">
+                        <div 
+                          onClick={() => setIsTreeExpanded(prev => ({ ...prev, allQueries: !prev.allQueries }))}
+                          className={`flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer ${
+                            isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {isTreeExpanded.allQueries ? <ChevronDown className="w-3 h-3 text-[#86989f]" /> : <ChevronRight className="w-3 h-3 text-[#86989f]" />}
+                          <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
+                          <span>All Queries</span>
+                        </div>
+
+                        {isTreeExpanded.allQueries && (
+                          <div className="pl-3 space-y-0.5">
+                            {/* Acceptance */}
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer ${
+                              isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                            }`}>
+                              <ChevronDown className="w-3 h-3 text-[#86989f]" />
+                              <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
+                              <span>Acceptance</span>
+                            </div>
+
+                            {/* Basic Queries */}
+                            <div className="pl-3 space-y-0.5">
+                              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded cursor-pointer ${
+                                isDarkMode ? 'text-[#d6e1e5] hover:bg-[#1a2327]' : 'text-slate-700 hover:bg-slate-100'
+                              }`}>
+                                <ChevronDown className="w-3 h-3 text-[#86989f]" />
+                                <FolderOpen className="w-3.5 h-3.5 text-[#f0a73a]" />
+                                <span>Basic Queries</span>
+                              </div>
+
+                              {/* Sub-queries filtered for active Admin */}
+                              <div className="pl-3 space-y-0.5">
+                                {renderTreeItem('audio_queries', 'Audio Queries', <Volume2 className="w-3 h-3 text-[#2ec4b6]" />)}
+                                {renderTreeItem('audit', 'Audit', <ShieldAlert className="w-3 h-3 text-[#f0a73a]" />)}
+                                {renderTreeItem('basic', 'Basic', <Layers className="w-3 h-3 text-[#8fb3c9]" />)}
+                                {renderTreeItem('calls', 'Calls', <PhoneCall className="w-3 h-3 text-[#2ec4b6]" />)}
+                                {renderTreeItem('calls_today', 'Calls today', <Radio className="w-3 h-3 text-[#2ec4b6]" />)}
+                                {renderTreeItem('calls_with_loc', 'Calls with Loc', <MapPin className="w-3 h-3 text-[#2ec4b6]" />)}
+                                {renderTreeItem('mms', 'MMS', <FileText className="w-3 h-3 text-[#f0a73a]" />)}
+                                {renderTreeItem('sms', 'SMS', <FileText className="w-3 h-3 text-[#8fb3c9]" />)}
+                                {renderTreeItem('subs', 'Subs', <Folder className="w-3 h-3 text-[#2ec4b6]" />)}
+                              </div>
+                            </div>
+
+                            {/* Other Branches under Acceptance */}
+                            <div className="space-y-0.5 pt-1 pl-3">
+                              {renderTreeItem('device', 'Device Queries', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
+                              {renderTreeItem('internet', 'Internet Queries', <Folder className="w-3.5 h-3.5 text-[#8fb3c9]" />)}
+                              {renderTreeItem('social_media', 'Social Media', <Folder className="w-3.5 h-3.5 text-[#f0a73a]" />)}
+                              {renderTreeItem('audit_trail', 'Audit Trail', <Folder className="w-3.5 h-3.5 text-[#2ec4b6]" />)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Quick Legal Attribution / Provenance Note */}
@@ -837,13 +1089,90 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
             {/* Quick jump to Voice Forensics if audio is attached */}
             {selectedRecord?.associated_evidence_id && (
               <button
-                onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || 'Case #V-0884', selectedRecord.associated_evidence_id || undefined)}
+                onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || currentAdmin.caseRef, selectedRecord.associated_evidence_id || undefined)}
                 className="flex items-center gap-1.5 bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] px-3 py-1 rounded text-xs font-bold transition-all shadow"
               >
                 <Volume2 className="w-3.5 h-3.5" />
-                <span>Analyze Audio Evidence ({selectedRecord.associated_case_code}) →</span>
+                <span>Analyze Audio Evidence ({selectedRecord.associated_case_code || currentAdmin.caseRef}) →</span>
               </button>
             )}
+          </div>
+
+          {/* ================= ACTIVE OPERATIONAL SITUATION BANNER ================= */}
+          <div className={`px-4 py-2 border-b flex flex-wrap items-center justify-between gap-3 text-xs font-mono transition-colors ${
+            isDarkMode ? 'bg-[#121c20] border-[#25323a]' : 'bg-slate-100 border-slate-300'
+          }`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div 
+                className="w-2.5 h-2.5 rounded-full animate-ping shrink-0" 
+                style={{ backgroundColor: currentAdmin.color }} 
+              />
+              <span 
+                className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase shrink-0" 
+                style={{
+                  backgroundColor: `${currentAdmin.color}22`,
+                  color: currentAdmin.color,
+                  border: `1px solid ${currentAdmin.color}66`
+                }}
+              >
+                {currentAdmin.label} · {currentAdmin.name} ({currentAdmin.role})
+              </span>
+              <span className="font-bold text-[#d6e1e5] truncate">
+                {currentAdmin.situation}
+              </span>
+              <span className="hidden xl:inline-block text-[#86989f] text-[11px] truncate">
+                Target: <span className="text-[#2ec4b6] font-semibold">{currentAdmin.targetNumber}</span> · Case: <span className="text-[#f0a73a] font-semibold">{currentAdmin.caseRef}</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => onNavigateToVoiceForensics(currentAdmin.caseRef, selectedRecord?.associated_evidence_id || undefined)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-bold transition-all shadow-md text-[#0d1113] hover:brightness-110"
+                style={{ backgroundColor: currentAdmin.color }}
+                title={`Open forensic synthetic voice lab for ${currentAdmin.caseRef}`}
+              >
+                <Volume2 className="w-3.5 h-3.5 fill-current" />
+                <span>Analyze Audio Evidence ({currentAdmin.caseRef}) →</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ================= 7 ADMIN SITUATION QUICK SWITCHER TOOLBAR ================= */}
+          <div className={`px-4 py-1.5 border-b flex items-center gap-2 overflow-x-auto text-[11px] font-mono no-scrollbar transition-colors ${
+            isDarkMode ? 'bg-[#0f171a] border-[#25323a]' : 'bg-slate-100 border-slate-200'
+          }`}>
+            <span className="text-[#86989f] font-bold shrink-0 uppercase tracking-wider text-[10px] flex items-center gap-1">
+              <ShieldAlert className="w-3 h-3 text-[#2ec4b6]" />
+              Admin Desks:
+            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {ADMIN_PROFILES.map((admin) => {
+                const isSelected = activeAdminId === admin.id;
+                return (
+                  <button
+                    key={admin.id}
+                    onClick={() => handleSelectAdmin(admin.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded border font-semibold transition-all shrink-0 ${
+                      isSelected
+                        ? 'bg-[#18262b] text-[#2ec4b6] border-[#2ec4b6] shadow-sm'
+                        : isDarkMode
+                          ? 'bg-[#141a1d] text-[#86989f] border-[#25323a] hover:text-[#d6e1e5] hover:border-[#86989f]'
+                          : 'bg-white text-slate-600 border-slate-300 hover:text-slate-900'
+                    }`}
+                    title={`${admin.label}: ${admin.situation} — Target: ${admin.targetNumber}`}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: admin.color }} />
+                    <span>{admin.label}: {admin.name.split(' ')[0]}</span>
+                    <span className={`text-[9px] px-1 rounded font-mono ${
+                      isSelected ? 'bg-[#2ec4b6]/20 text-[#2ec4b6]' : isDarkMode ? 'bg-[#1a2327] text-[#86989f]' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {calls.filter(c => c.admin_id === admin.id).length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* ================= MAP CONTROLS SUB-TOOLBAR ================= */}

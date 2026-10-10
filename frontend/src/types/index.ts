@@ -1,11 +1,13 @@
 export interface TranscriptSegment {
-  id: number;
+  id?: number;
   start: number;
   end: number;
   text: string;
-  speaker: string;
-  has_scam_flag: boolean;
+  speaker?: string;
+  has_scam_flag?: boolean;
   flagged_terms: string[];
+  is_suspicious?: boolean;
+  flagged_keywords?: string[];
 }
 
 export interface ScamIndicator {
@@ -16,15 +18,22 @@ export interface ScamIndicator {
   evidence_phrase: string;
   explanation: string;
   timestamp_offset?: number;
+  keyword?: string;
+  confidence?: number;
+  description?: string;
 }
 
 export interface AcousticBreakdown {
   spectral_centroid_hz: number;
   spectral_flatness: number;
-  high_frequency_ratio: number;
-  vocoder_artifact_score: number;
-  pitch_jitter_variance: number;
-  phase_discontinuity_index: number;
+  high_frequency_ratio?: number;
+  vocoder_artifact_score?: number;
+  pitch_jitter_variance?: number;
+  phase_discontinuity_index?: number;
+  rolloff_hz?: number;
+  jitter_local?: number;
+  shimmer_local?: number;
+  snr_db?: number;
 }
 
 export interface LocationRecord {
@@ -44,6 +53,7 @@ export interface LocationRecord {
 
 export interface AnalysisResponse {
   analysis_id: string;
+  case_code?: string;
   event_id: string;
   file_hash: string;
   call_type?: string;
@@ -56,6 +66,7 @@ export interface AnalysisResponse {
   waveform_data: number[];
   
   // Voice Authenticity Models: ECAPA-TDNN & AASIST / RawNet2
+  speaker_enrolled?: boolean;
   speaker_similarity_model?: string;
   speaker_similarity_score?: number;
   speaker_similarity_threshold?: number;
@@ -171,6 +182,7 @@ export interface CallRecord {
   distance_meters?: number | null;
   consent_token?: string | null;
   category?: 'call' | 'sms' | 'mms' | 'device' | 'internet' | 'social_media' | 'subscriber' | 'audit' | string;
+  admin_id?: number;
 }
 
 export type ActiveNavTab = 'voice_analysis' | 'geospatial' | 'dashboard' | 'new_analysis' | 'history' | 'models' | 'settings';
