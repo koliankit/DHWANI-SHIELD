@@ -31,7 +31,9 @@ import {
   EyeOff,
   AlertTriangle,
   Folder,
-  FolderOpen
+  FolderOpen,
+  X,
+  Crosshair
 } from 'lucide-react';
 import { CallRecord } from '../../types';
 import { api } from '../../services/api';
@@ -84,6 +86,9 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
     basicQueries: true
   });
 
+  // Dedicated Side Panel State (keeps map 100% unobstructed)
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState<boolean>(true);
+
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
@@ -94,6 +99,16 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
       setActiveRef(selectedCallRef);
     }
   }, [selectedCallRef]);
+
+  // Adjust Leaflet map size when side panel toggles
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [isSidePanelOpen]);
 
   // Automated Playback Ticker for Call Tracks
   useEffect(() => {
@@ -773,6 +788,20 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
                 <Radio className={`w-3.5 h-3.5 ${isRadarAnimationActive ? 'animate-pulse text-[#2ec4b6]' : ''}`} />
                 <span>Radar Scan: {isRadarAnimationActive ? 'ON' : 'OFF'}</span>
               </button>
+
+              {/* Side Panel Toggle */}
+              <button
+                onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
+                title="Toggle Selected Record Side Section"
+                className={`flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded border transition-all ${
+                  isSidePanelOpen
+                    ? 'bg-[#1a2327] border-[#2ec4b6]/60 text-[#2ec4b6] font-bold'
+                    : isDarkMode ? 'bg-[#1a2327] border-[#25323a] text-[#86989f]' : 'bg-white border-slate-300 text-slate-500'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                <span>Side Panel: {isSidePanelOpen ? 'OPEN' : 'HIDDEN'}</span>
+              </button>
             </div>
 
             {/* Right Subject Badges Legend Matching Reference Image 1 */}
@@ -821,114 +850,210 @@ export const GeospatialInvestigationView: React.FC<Props> = ({
 
           </div>
 
-          {/* ================= MAP CANVAS CONTAINER (50% HEIGHT) ================= */}
-          <div className="h-72 lg:h-96 relative w-full bg-[#0d1113] border-b border-[#25323a]">
-            {/* The Actual Leaflet Map Canvas */}
-            <div ref={mapContainerRef} className="w-full h-full z-10" />
+          {/* ================= MAP ROW: MAP (LEFT/CENTER) + SELECTED RECORD SIDE SECTION (RIGHT) ================= */}
+          <div className="h-[380px] lg:h-[440px] flex flex-col lg:flex-row w-full bg-[#0d1113] border-b border-[#25323a] relative overflow-hidden">
+            
+            {/* The Actual Leaflet Map Canvas (Takes 100% of available space unobstructed) */}
+            <div className="flex-1 relative h-full min-w-0">
+              <div ref={mapContainerRef} className="w-full h-full z-10" />
 
-            {/* Floating Selected Record Info Overlay on Map */}
-            {selectedRecord && selectedRecord.latitude && (
-              <div className="absolute top-3 left-3 z-20 bg-[#141a1d]/95 backdrop-blur-md border border-[#25323a] rounded-xl p-3 shadow-2xl text-xs font-mono text-[#d6e1e5] max-w-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-[#25323a] pb-2 mb-2">
-                  <span className="font-bold text-[#d6e1e5] flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#2ec4b6]" />
-                    Ref #{selectedRecord.ref_number} ({selectedRecord.event_id || `Case ${selectedRecord.case_id}`})
-                  </span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase ${
-                    selectedRecord.source_type === 'HANDSET_EMERGENCY' || selectedRecord.source_type === 'CONSENT_LINK_GPS'
-                      ? 'bg-[#12312f] text-[#2ec4b6] border border-[#2ec4b6]/60'
-                      : 'bg-[#f0a73a]/20 text-[#f0a73a] border border-[#f0a73a]/60'
-                  }`}>
-                    {selectedRecord.source_badge || selectedRecord.location_provenance}
-                  </span>
-                </div>
+              {/* Center on Target Quick Button */}
+              {selectedRecord?.latitude && selectedRecord?.longitude && (
+                <button
+                  onClick={() => {
+                    if (mapInstanceRef.current && selectedRecord.latitude && selectedRecord.longitude) {
+                      mapInstanceRef.current.panTo([selectedRecord.latitude, selectedRecord.longitude], { animate: true });
+                    }
+                  }}
+                  className="absolute top-3 left-3 z-20 bg-[#141a1d]/90 hover:bg-[#1a2327] border border-[#25323a] text-[#2ec4b6] px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 shadow-lg transition-all"
+                  title="Re-center map on selected tower"
+                >
+                  <Crosshair className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                  <span>Center Tower</span>
+                </button>
+              )}
 
-                <div className="space-y-1.5 text-[11px] text-[#86989f]">
-                  {selectedRecord.approximate_address && (
-                    <div className="text-[#d6e1e5] font-sans font-medium text-xs bg-[#1a2327] p-2 rounded-lg border border-[#25323a]">
-                      <span className="text-[#2ec4b6] font-mono text-[10px] block mb-0.5 font-bold">Approximate Address:</span>
-                      {selectedRecord.approximate_address}
-                    </div>
-                  )}
-                  <div>Target: <span className="text-[#d6e1e5] font-bold">{selectedRecord.target_number}</span></div>
-                  <div>Coordinates: <span className="text-[#d6e1e5] font-mono">{selectedRecord.latitude?.toFixed(4)}°N, {selectedRecord.longitude?.toFixed(4)}°W</span></div>
-                  <div>Coverage Radius: <span className="text-[#2ec4b6] font-bold">±{selectedRecord.accuracy_meters || selectedRecord.cell_radius_meters}m circle</span></div>
-                  {selectedRecord.azimuth_degrees !== null && selectedRecord.azimuth_degrees !== undefined && (
-                    <div>Sector Azimuth: <span className="text-[#f0a73a]">{selectedRecord.azimuth_degrees}° (Beamwidth: {selectedRecord.beamwidth_degrees}°)</span></div>
-                  )}
-                  <div className="text-[10px] pt-1 text-[#86989f] italic">
-                    {selectedRecord.legal_basis || selectedRecord.provenance_details}
-                  </div>
-                </div>
+              {/* Toggle Side Panel Button on Map Canvas */}
+              <button
+                onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
+                className="absolute top-3 right-3 z-20 bg-[#141a1d]/90 hover:bg-[#1a2327] border border-[#25323a] text-[#d6e1e5] px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 shadow-lg transition-all"
+                title={isSidePanelOpen ? "Hide Side Panel" : "Show Side Panel"}
+              >
+                <Sliders className="w-3.5 h-3.5 text-[#2ec4b6]" />
+                <span>{isSidePanelOpen ? "Hide Side Panel" : "Show Side Panel"}</span>
+              </button>
 
-                {selectedRecord.associated_case_code && (
-                  <div className="mt-2.5 pt-2 border-t border-[#25323a] flex items-center justify-between">
-                    <span className="text-[#f0a73a] font-bold text-[10px] flex items-center gap-1">
-                      <Volume2 className="w-3.5 h-3.5" /> Audio Linked
-                    </span>
-                    <button
-                      onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || 'Case #V-0884', selectedRecord.associated_evidence_id || undefined)}
-                      className="text-[10px] bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold px-2.5 py-1 rounded transition-colors shadow"
-                    >
-                      Analyze Audio Evidence →
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tactical Radar Sweep HUD Overlay */}
-            {isRadarAnimationActive && selectedRecord && selectedRecord.latitude && (
-              <div className="absolute bottom-3 right-3 z-20 bg-[#141a1d]/90 backdrop-blur-md border border-[#2ec4b6]/50 rounded-xl px-3.5 py-2 shadow-2xl text-[11px] font-mono text-[#d6e1e5] flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
+              {/* Tactical Radar Sweep HUD Overlay (Bottom-left, compact) */}
+              {isRadarAnimationActive && selectedRecord && selectedRecord.latitude && (
+                <div className="absolute bottom-3 left-3 z-20 bg-[#141a1d]/90 backdrop-blur-md border border-[#2ec4b6]/50 rounded-lg px-3 py-1.5 shadow-xl text-[10px] font-mono text-[#d6e1e5] flex items-center gap-2.5">
+                  <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2ec4b6] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#2ec4b6]"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2ec4b6]"></span>
                   </span>
                   <span className="text-[#2ec4b6] font-bold">RADAR SWEEP ACTIVE</span>
+                  <span className="text-[#86989f]">|</span>
+                  <span className="text-[#d6e1e5]">
+                    RADIUS: <strong className="text-[#2ec4b6]">{selectedRadiusMeters >= 1000 ? `${(selectedRadiusMeters / 1000).toFixed(1)} km` : `${selectedRadiusMeters} m`}</strong>
+                  </span>
+                  {isPlayingTrack && (
+                    <>
+                      <span className="text-[#86989f]">|</span>
+                      <span className="text-[#f0a73a] font-bold animate-pulse">▶ TRACK PLAYING</span>
+                    </>
+                  )}
                 </div>
-                <span className="text-[#86989f]">|</span>
-                <span className="text-[#d6e1e5]">
-                  RADIUS: <strong className="text-[#2ec4b6]">{selectedRadiusMeters >= 1000 ? `${(selectedRadiusMeters / 1000).toFixed(1)} km` : `${selectedRadiusMeters} m`}</strong>
-                </span>
-                {isPlayingTrack && (
-                  <>
-                    <span className="text-[#86989f]">|</span>
-                    <span className="text-[#f0a73a] font-bold animate-pulse">▶ TRACK PLAYING</span>
-                  </>
-                )}
+              )}
+            </div>
+
+            {/* ================= DEDICATED SIDE SECTION FOR SELECTED RECORD & PROVENANCE ================= */}
+            {isSidePanelOpen && (
+              <div className={`w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-[#25323a] flex flex-col h-full overflow-y-auto shrink-0 z-20 transition-all ${
+                isDarkMode ? 'bg-[#141a1d] text-[#d6e1e5]' : 'bg-slate-50 text-slate-900'
+              }`}>
+                {/* Side Panel Header */}
+                <div className="p-3 border-b border-[#25323a] bg-[#1a2327] flex items-center justify-between gap-2 shrink-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <MapPin className="w-4 h-4 text-[#2ec4b6] shrink-0" />
+                    <span className="font-bold text-xs font-mono truncate text-[#d6e1e5]">
+                      Ref #{selectedRecord?.ref_number} ({selectedRecord?.event_id || `Case ${selectedRecord?.case_id}`})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setIsSidePanelOpen(false)}
+                      className="p-1 hover:bg-[#25323a] rounded text-[#86989f] hover:text-[#d6e1e5] transition-colors"
+                      title="Close Side Panel"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Side Panel Body */}
+                <div className="p-3.5 space-y-3 flex-1 overflow-y-auto font-mono text-xs">
+                  
+                  {/* Provenance Badge */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-[#86989f] uppercase tracking-wider font-semibold">Provenance:</span>
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded font-bold uppercase truncate ${
+                      selectedRecord?.source_type === 'HANDSET_EMERGENCY' || selectedRecord?.source_type === 'CONSENT_LINK_GPS'
+                        ? 'bg-[#12312f] text-[#2ec4b6] border border-[#2ec4b6]/60'
+                        : selectedRecord?.source_type === 'LOCATION_UNAVAILABLE'
+                        ? 'bg-[#e5534b]/20 text-[#e5534b] border border-[#e5534b]/60'
+                        : 'bg-[#f0a73a]/20 text-[#f0a73a] border border-[#f0a73a]/60'
+                    }`}>
+                      {selectedRecord?.source_badge || selectedRecord?.location_provenance}
+                    </span>
+                  </div>
+
+                  {/* If record has coordinates */}
+                  {selectedRecord && selectedRecord.latitude && selectedRecord.longitude ? (
+                    <>
+                      {/* Geocoded Address Box */}
+                      {selectedRecord.approximate_address && (
+                        <div className="bg-[#1a2327] p-2.5 rounded-lg border border-[#25323a]">
+                          <span className="text-[#2ec4b6] text-[10px] block mb-1 font-bold uppercase tracking-wider">
+                            Approximate Address:
+                          </span>
+                          <div className="text-[#d6e1e5] font-sans font-medium text-xs leading-relaxed">
+                            {selectedRecord.approximate_address}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Attributes Grid */}
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div className="p-2 rounded bg-[#1a2327] border border-[#25323a]">
+                          <span className="text-[#86989f] block text-[10px]">Target Caller:</span>
+                          <span className="text-[#d6e1e5] font-bold">{selectedRecord.target_number}</span>
+                        </div>
+                        <div className="p-2 rounded bg-[#1a2327] border border-[#25323a]">
+                          <span className="text-[#86989f] block text-[10px]">Coverage Radius:</span>
+                          <span className="text-[#2ec4b6] font-bold">±{selectedRecord.accuracy_meters || selectedRecord.cell_radius_meters}m</span>
+                        </div>
+                        <div className="p-2 rounded bg-[#1a2327] border border-[#25323a] col-span-2">
+                          <span className="text-[#86989f] block text-[10px]">Coordinates:</span>
+                          <span className="text-[#d6e1e5] font-bold font-mono">
+                            {selectedRecord.latitude.toFixed(4)}°N, {selectedRecord.longitude.toFixed(4)}°W
+                          </span>
+                        </div>
+                        {selectedRecord.azimuth_degrees !== null && selectedRecord.azimuth_degrees !== undefined && (
+                          <div className="p-2 rounded bg-[#1a2327] border border-[#25323a] col-span-2">
+                            <span className="text-[#86989f] block text-[10px]">Sector Azimuth / Beam:</span>
+                            <span className="text-[#f0a73a] font-bold">
+                              {selectedRecord.azimuth_degrees}° Azimuth (Beamwidth: {selectedRecord.beamwidth_degrees}°)
+                            </span>
+                          </div>
+                        )}
+                        <div className="p-2 rounded bg-[#1a2327] border border-[#25323a]">
+                          <span className="text-[#86989f] block text-[10px]">Tower ID:</span>
+                          <span className="text-[#d6e1e5] truncate block" title={selectedRecord.first_tower}>
+                            {selectedRecord.first_tower}
+                          </span>
+                        </div>
+                        <div className="p-2 rounded bg-[#1a2327] border border-[#25323a]">
+                          <span className="text-[#86989f] block text-[10px]">Call Time:</span>
+                          <span className="text-[#d6e1e5] truncate block">
+                            {selectedRecord.start_time || '14:26:04'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Legal Basis / Provenance Citation */}
+                      <div className="p-2.5 rounded bg-[#0d1113] border border-[#25323a] text-[10px] text-[#86989f] leading-relaxed">
+                        <span className="text-[#d6e1e5] font-semibold block mb-0.5">Legal Basis / Telemetry Source:</span>
+                        <span className="italic">{selectedRecord.legal_basis || selectedRecord.provenance_details}</span>
+                      </div>
+
+                      {/* Audio Link & Actions */}
+                      {selectedRecord.associated_case_code && (
+                        <div className="pt-2 border-t border-[#25323a] space-y-2">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-[#f0a73a] font-bold flex items-center gap-1.5">
+                              <Volume2 className="w-3.5 h-3.5" />
+                              Audio Evidence Linked
+                            </span>
+                            <span className="text-[10px] text-[#86989f]">{selectedRecord.associated_case_code}</span>
+                          </div>
+                          <button
+                            onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code || 'Case #V-0884', selectedRecord.associated_evidence_id || undefined)}
+                            className="w-full py-2 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all hover:scale-[1.01]"
+                          >
+                            <Volume2 className="w-4 h-4 text-[#0d1113]" />
+                            <span>Analyze Audio Evidence →</span>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Location Unavailable in Side Panel */
+                    <div className="p-3.5 rounded-lg bg-[#e5534b]/10 border border-[#e5534b]/40 space-y-2 text-xs">
+                      <div className="flex items-center gap-2 text-[#e5534b] font-bold">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Location Unavailable</span>
+                      </div>
+                      <p className="text-[#86989f] leading-relaxed text-[11px] font-sans">
+                        A voice, a phone number or an IP address cannot tell you where someone is, and RAKSHAM will not build anything that guesses it.
+                      </p>
+                      <p className="text-[#86989f] leading-relaxed text-[10px]">
+                        No authorized CDR record, emergency dispatch GPS, or consent link is linked to this event.
+                      </p>
+                      {selectedRecord?.associated_case_code && (
+                        <button
+                          onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code!, selectedRecord.associated_evidence_id || undefined)}
+                          className="w-full mt-2 py-2 px-3 rounded-lg bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs flex items-center justify-center gap-2 shadow transition-all"
+                        >
+                          <Volume2 className="w-4 h-4 text-[#0d1113]" />
+                          <span>Analyze Audio Evidence ({selectedRecord.associated_case_code}) →</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                </div>
               </div>
             )}
 
-            {/* Location Unavailable Banner if selected record has no coordinates */}
-            {selectedRecord && (!selectedRecord.latitude || selectedRecord.source_type === 'LOCATION_UNAVAILABLE' || selectedRecord.location_provenance === 'LOCATION UNAVAILABLE') && (
-              <div className="absolute inset-0 z-20 bg-[#0d1113]/90 backdrop-blur-sm flex items-center justify-center p-6">
-                <div className="bg-[#141a1d] border border-[#e5534b]/60 p-6 rounded-2xl text-center max-w-lg shadow-2xl space-y-3.5">
-                  <div className="w-12 h-12 rounded-full bg-[#e5534b]/20 border border-[#e5534b] text-[#e5534b] flex items-center justify-center mx-auto">
-                    <AlertTriangle className="w-6 h-6 text-[#e5534b]" />
-                  </div>
-                  <h4 className="text-base font-bold text-[#e5534b] tracking-wide font-mono">LOCATION UNAVAILABLE</h4>
-                  <p className="text-xs text-[#d6e1e5] leading-relaxed font-sans">
-                    A voice, a phone number or an IP address cannot tell you where someone is, and RAKSHAM will not build anything that guesses it.
-                  </p>
-                  <p className="text-[11px] text-[#86989f] font-mono leading-relaxed">
-                    A map position can only come from a record you are allowed to use: carrier tower/CDR records (area, not a point), handset emergency GPS, or a complainant GPS consent link. No authorized record exists for this call.
-                  </p>
-                  <div className="p-2.5 rounded-lg bg-[#1a2327] border border-[#25323a] text-xs font-mono text-[#2ec4b6] font-semibold">
-                    The audio forensics and anti-spoofing analysis still works uninterrupted.
-                  </div>
-                  {selectedRecord.associated_case_code && (
-                    <button
-                      onClick={() => onNavigateToVoiceForensics(selectedRecord.associated_case_code!, selectedRecord.associated_evidence_id || undefined)}
-                      className="w-full py-2.5 px-4 rounded-xl bg-[#2ec4b6] hover:bg-[#2ec4b6]/90 text-[#0d1113] font-bold text-xs font-mono flex items-center justify-center gap-2 shadow transition-all"
-                    >
-                      <Volume2 className="w-4 h-4 text-[#0d1113]" />
-                      <span>Analyze Audio Evidence ({selectedRecord.associated_case_code}) →</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* ================= CDR CALL RECORDS TABLE (BOTTOM 50%) ================= */}
