@@ -11,10 +11,22 @@ import { ShareModal } from './components/ShareModal';
 import { ActiveNavTab, AnalysisResponse, SystemStatusResponse } from './types';
 import { api } from './services/api';
 import { MapPin } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LocationMap } from './pages/LocationMap';
 
 export const App: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Voice Analysis (Hero Dashboard: Reference Image 2) is active by default
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('voice_analysis');
+  const [activeTab, setActiveTab] = useState<ActiveNavTab>(() => {
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname === '/location-map' || window.location.search.includes('event=')) {
+        return 'location_map';
+      }
+    }
+    return 'voice_analysis';
+  });
   const [selectedCallRef, setSelectedCallRef] = useState<number | null>(1348);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -76,6 +88,13 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  // Listen to path changes (/location-map) or search params (?event=...)
+  useEffect(() => {
+    if (location.pathname === '/location-map' || location.search.includes('event=')) {
+      setActiveTab('location_map');
+    }
+  }, [location.pathname, location.search]);
+
   const loadSystemStatus = async () => {
     try {
       const status = await api.getModels();
@@ -108,9 +127,20 @@ export const App: React.FC = () => {
       setAnalysisStage(0);
       setHasFailed(false);
       setActiveTab('new_analysis');
+      if (location.pathname === '/location-map') navigate('/');
+      return;
+    }
+    if (tab === 'location_map') {
+      setActiveTab('location_map');
+      if (location.pathname !== '/location-map') {
+        navigate('/location-map');
+      }
       return;
     }
     setActiveTab(tab);
+    if (location.pathname === '/location-map') {
+      navigate('/');
+    }
   };
 
   // Shared context navigation between Voice Forensics & Geospatial Map
@@ -121,8 +151,11 @@ export const App: React.FC = () => {
     setActiveTab('geospatial');
   };
 
-  const handleNavigateToVoiceForensics = async (caseCode: string, evidenceId?: string) => {
+  const handleNavigateToVoiceForensics = async (caseCode: string, evidenceId?: string, locationSource?: string) => {
     setActiveTab('voice_analysis');
+    if (location.pathname === '/location-map') {
+      navigate('/');
+    }
     setIsAnalyzing(true);
     setAnalysisStage(1);
     
@@ -293,6 +326,14 @@ export const App: React.FC = () => {
             <GeospatialInvestigationView
               selectedCallRef={selectedCallRef}
               onSelectCallRef={(ref) => setSelectedCallRef(ref)}
+              onNavigateToVoiceForensics={handleNavigateToVoiceForensics}
+              isDarkMode={isDarkMode}
+            />
+          )}
+
+          {/* 3. Location Map 3D Earth Search (Reference RAKSHAM Earth Module) */}
+          {activeTab === 'location_map' && (
+            <LocationMap
               onNavigateToVoiceForensics={handleNavigateToVoiceForensics}
               isDarkMode={isDarkMode}
             />

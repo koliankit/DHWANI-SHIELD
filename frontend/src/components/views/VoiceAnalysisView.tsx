@@ -335,6 +335,28 @@ export const VoiceAnalysisView: React.FC<Props> = ({
   useEffect(() => {
     if (analysisData) {
       const isUnavail = !analysisData.location_record || analysisData.location_record.source === 'LOCATION_UNAVAILABLE' || !analysisData.location_record.latitude;
+      const matchingPreset = CASES.find(c => 
+        (analysisData.event_id && c.eventId.toLowerCase() === analysisData.event_id.toLowerCase()) || 
+        c.id === analysisData.analysis_id ||
+        (analysisData.filename && c.title.toLowerCase().includes(analysisData.filename.toLowerCase()))
+      );
+
+      const computedSampleKey = matchingPreset 
+        ? matchingPreset.sampleKey 
+        : analysisData.synthetic_speech_score > 0.6 
+          ? 'ai_clone' 
+          : analysisData.scam_indicators_count > 0 
+            ? 'scam' 
+            : 'benign';
+
+      const computedLinkedRef = matchingPreset 
+        ? matchingPreset.linkedCallRef 
+        : computedSampleKey === 'benign' 
+          ? 3011 
+          : computedSampleKey === 'scam' 
+            ? 2011 
+            : 1348;
+
       const dynamicCase: CaseItem = {
         id: analysisData.analysis_id,
         code: `Analysis #${analysisData.analysis_id.slice(0, 6)}`,
@@ -348,12 +370,12 @@ export const VoiceAnalysisView: React.FC<Props> = ({
         voiceSynthesisPct: Math.round(analysisData.synthetic_speech_score * 100),
         playbackAttackPct: Math.round((analysisData.synthetic_speech_score * 0.75) * 100),
         temporalBreakText: analysisData.synthetic_speech_score > 0.6 ? 'TEMPORAL BREAK DETECTED' : 'NO BREAKS DETECTED',
-        principal: 'Enrolled Template #P-0047',
+        principal: matchingPreset?.principal || 'Enrolled Template #P-0047',
         model: 'ECAPA-TDNN (SpeechBrain) + AASIST (ASVspoof)',
         submissionDate: new Date().toISOString().split('T')[0],
         sourceType: analysisData.call_type || 'Recorded Audio Intake',
-        sampleKey: 'ai_clone',
-        linkedCallRef: 1348,
+        sampleKey: computedSampleKey,
+        linkedCallRef: computedLinkedRef,
         cellTowerId: isUnavail ? 'TOWER_UNAVAILABLE' : '3102604f160b7e303',
         locationArea: isUnavail ? 'Location Unavailable' : (analysisData.location_record?.approximate_address || 'Alexandria, VA Sector 1'),
         locationSource: (analysisData.location_record?.source as any) || (isUnavail ? 'LOCATION_UNAVAILABLE' : 'CARRIER_TOWER_CDR'),
@@ -507,8 +529,8 @@ export const VoiceAnalysisView: React.FC<Props> = ({
         model: result.model_name || 'ECAPA-TDNN (SpeechBrain) + AASIST (ASVspoof)',
         submissionDate: new Date().toISOString().split('T')[0],
         sourceType: `Direct Upload (${(file.size / 1024).toFixed(1)} KB)`,
-        sampleKey: 'ai_clone',
-        linkedCallRef: 1348,
+        sampleKey: result.synthetic_speech_score > 0.6 ? 'ai_clone' : result.scam_indicators_count > 0 ? 'scam' : 'benign',
+        linkedCallRef: result.synthetic_speech_score > 0.6 ? 1348 : result.scam_indicators_count > 0 ? 2011 : 3011,
         cellTowerId: isUnavail ? 'TOWER_UNAVAILABLE' : '3102604f160b7e303',
         locationArea: isUnavail ? 'Location Unavailable' : (result.location_record?.approximate_address || 'Alexandria, VA Sector 1'),
         locationSource: (result.location_record?.source as any) || (isUnavail ? 'LOCATION_UNAVAILABLE' : 'CARRIER_TOWER_CDR'),

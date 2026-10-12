@@ -110,7 +110,7 @@ export const HistoryView: React.FC<Props> = ({ onLoadAnalysis }) => {
               <tbody className="divide-y divide-[#25323a]">
                 {historyItems.map((item) => {
                   const isHigh = item.overall_risk === 'HIGH RISK';
-                  const isVerify = item.overall_risk === 'VERIFY';
+                  const isVerify = item.overall_risk === 'VERIFY' || item.overall_risk === 'REVIEW REQUIRED';
                   const badgeClass = isHigh
                     ? 'bg-[#e5534b]/20 text-[#e5534b] border-[#e5534b]/50'
                     : isVerify

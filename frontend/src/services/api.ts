@@ -5,9 +5,21 @@ import {
   CallRecord,
   TranscriptSegment,
   ScamIndicator,
-  AcousticBreakdown 
+  AcousticBreakdown,
+  EventRecord,
+  GeocodePlace
 } from '../types';
 import { DEFAULT_GEOSPATIAL_CALLS } from '../data/mockGeospatialCalls';
+
+const DEMO_EVENTS_FALLBACK: EventRecord[] = [
+  { id: 'EVT-0001', case_id: 'CASE-DEMO-01', caller_id: 'SAMPLE-A', timestamp: '2026-10-01 09:12', direction: 'Outgoing', location_source: 'SAMPLE', lat: 28.6129, lng: 77.2295, status: 'Open', risk_score: 0.15, verdict: 'LOW RISK', is_demo: true },
+  { id: 'EVT-0002', case_id: 'CASE-DEMO-01', caller_id: 'SAMPLE-A', timestamp: '2026-10-01 14:40', direction: 'Incoming', location_source: 'ESTIMATED', lat: 19.0760, lng: 72.8777, status: 'Under review', risk_score: 0.65, verdict: 'REVIEW REQUIRED', is_demo: true },
+  { id: 'EVT-0003', case_id: 'CASE-DEMO-01', caller_id: 'SAMPLE-C', timestamp: '2026-10-02 11:05', direction: 'Outgoing', location_source: 'SAMPLE', lat: 28.6229, lng: 77.2395, status: 'Open', risk_score: 0.12, verdict: 'LOW RISK', is_demo: true },
+  { id: 'EVT-0004', case_id: 'CASE-DEMO-02', caller_id: 'SAMPLE-A', timestamp: '2026-10-03 08:15', direction: 'Outgoing', location_source: 'SAMPLE', lat: 25.2048, lng: 55.2708, status: 'Under review', risk_score: 0.58, verdict: 'REVIEW REQUIRED', is_demo: true },
+  { id: 'EVT-0005', case_id: 'CASE-DEMO-02', caller_id: 'SAMPLE-E', timestamp: '2026-10-03 16:47', direction: 'Incoming', location_source: 'UNAVAILABLE', lat: null, lng: null, status: 'Open', risk_score: 0.89, verdict: 'HIGH RISK', is_demo: true },
+  { id: 'EVT-0006', case_id: 'CASE-DEMO-02', caller_id: 'SAMPLE-E', timestamp: '2026-10-04 10:30', direction: 'Incoming', location_source: 'SAMPLE', lat: 51.5074, lng: -0.1278, status: 'Closed', risk_score: 0.20, verdict: 'LOW RISK', is_demo: true },
+  { id: 'EVT-0007', case_id: 'CASE-DEMO-03', caller_id: 'SAMPLE-C', timestamp: '2026-10-04 19:30', direction: 'Outgoing', location_source: 'ESTIMATED', lat: 12.9716, lng: 77.5946, status: 'Open', risk_score: 0.74, verdict: 'HIGH RISK', is_demo: true },
+];
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
@@ -834,5 +846,56 @@ export const api = {
       const found = DEFAULT_GEOSPATIAL_CALLS.find(c => c.associated_evidence_id === evidenceId || c.event_id === evidenceId);
       return found || null;
     }
+  },
+
+  async getEvents(): Promise<EventRecord[]> {
+    try {
+      const res = await fetch(`${API_BASE}/events`);
+      if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Failed to fetch events');
+      }
+      return await res.json();
+    } catch {
+      return DEMO_EVENTS_FALLBACK;
+    }
+  },
+
+  async getEvent(id: string): Promise<EventRecord | null> {
+    try {
+      const res = await fetch(`${API_BASE}/events/${id}`);
+      if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
+        throw new Error(`Event ${id} not found`);
+      }
+      return await res.json();
+    } catch {
+      return DEMO_EVENTS_FALLBACK.find(e => e.id.toUpperCase() === id.toUpperCase()) || null;
+    }
+  },
+
+  async geocode(query: string): Promise<GeocodePlace[]> {
+    const q = query.trim();
+    if (!q) return [];
+    try {
+      const res = await fetch(`${API_BASE}/geocode?q=${encodeURIComponent(q)}`);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (err) {
+      console.warn('Backend geocode proxy unreachable, attempting direct fallback', err);
+    }
+    // Direct Nominatim fallback if backend proxy is temporarily unreachable
+    try {
+      const direct = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&polygon_geojson=1&q=${encodeURIComponent(q)}`, {
+        headers: { Accept: 'application/json' }
+      });
+      if (direct.ok) {
+        return await direct.json();
+      }
+    } catch (e) {
+      console.error('Geocode fallback query failed', e);
+    }
+    return [];
   }
 };
+

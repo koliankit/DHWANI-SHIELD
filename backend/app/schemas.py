@@ -147,3 +147,18 @@ class SystemStatusResponse(BaseModel):
     database_connected: bool
     models: List[SystemModelDetail]
     active_analyses_count: int
+
+class EventRecord(BaseModel):
+    id: str
+    case_id: str
+    caller_id: str
+    timestamp: str
+    direction: str  # "Incoming" | "Outgoing"
+    location_source: str  # "VERIFIED" | "ESTIMATED" | "SAMPLE" | "UNAVAILABLE"
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    status: str  # "Open" | "Under review" | "Closed"
+    risk_score: Optional[float] = None
+    verdict: Optional[str] = None  # "LOW RISK" | "REVIEW REQUIRED" | "HIGH RISK"
+    is_demo: bool = True
+

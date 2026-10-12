@@ -96,8 +96,9 @@ export const MetricCards: React.FC<Props> = ({ data, isAnalyzing }) => {
 
   // Card 1: Voice Authenticity
   const syntheticScorePct = (data.synthetic_speech_score * 100).toFixed(1);
-  const isSynthetic = data.synthetic_speech_score >= 0.65 || data.authenticity_label === 'Likely Synthetic';
-  const isReal = data.synthetic_speech_score <= 0.35 || data.authenticity_label === 'Likely Real';
+  const authLabelUpper = (data.authenticity_label || '').toUpperCase();
+  const isSynthetic = data.synthetic_speech_score >= 0.65 || authLabelUpper.includes('SYNTHETIC');
+  const isReal = data.synthetic_speech_score <= 0.35 || authLabelUpper.includes('REAL') || authLabelUpper.includes('GENUINE');
 
   const authColorClass = isSynthetic
     ? 'text-[#e5534b] bg-[#e5534b]/15 border-[#e5534b]/40'
@@ -111,7 +112,7 @@ export const MetricCards: React.FC<Props> = ({ data, isAnalyzing }) => {
 
   // Card 3: Overall Risk
   const isHighRisk = data.overall_risk === 'HIGH RISK';
-  const isVerify = data.overall_risk === 'VERIFY';
+  const isVerify = data.overall_risk === 'VERIFY' || data.overall_risk === 'REVIEW REQUIRED';
 
   const riskBadgeStyles = isHighRisk
     ? 'bg-[#e5534b]/20 text-[#e5534b] border-[#e5534b]/50'
@@ -120,6 +121,7 @@ export const MetricCards: React.FC<Props> = ({ data, isAnalyzing }) => {
     : 'bg-[#12312f] text-[#2ec4b6] border-[#2ec4b6]/50';
 
   const RiskIcon = isHighRisk ? ShieldAlert : isVerify ? AlertTriangle : ShieldCheck;
+  const riskIconColor = isHighRisk ? 'text-[#e5534b]' : isVerify ? 'text-[#f0a73a]' : 'text-[#2ec4b6]';
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -208,7 +210,7 @@ export const MetricCards: React.FC<Props> = ({ data, isAnalyzing }) => {
         <div>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold text-[#86989f] uppercase tracking-wider flex items-center gap-1.5">
-              <RiskIcon className="w-3.5 h-3.5 text-[#2ec4b6]" />
+              <RiskIcon className={`w-3.5 h-3.5 ${riskIconColor}`} />
               Overall Risk
             </span>
             <span className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full border font-bold ${riskBadgeStyles}`}>

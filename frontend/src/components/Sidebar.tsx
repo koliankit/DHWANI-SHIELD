@@ -2,6 +2,7 @@ import React from 'react';
 import { 
   Folder, 
   MapPin,
+  Globe,
   ShieldAlert, 
   PlusCircle, 
   History, 
@@ -42,6 +43,13 @@ export const Sidebar: React.FC<Props> = ({
       subtitle: 'Cell Tower & CDR Map',
       icon: MapPin, 
       badge: '16 CDR' 
+    },
+    { 
+      id: 'location_map' as ActiveNavTab, 
+      label: 'Location Map', 
+      subtitle: '3D Earth & Search',
+      icon: Globe, 
+      badge: '3D' 
     },
     { 
       id: 'dashboard' as ActiveNavTab, 

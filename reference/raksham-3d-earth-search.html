@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RAKSHAM · 3D Earth search</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl.css">
+<style>
+:root{color-scheme:dark;--bg:#0d1113;--pn:#141a1d;--rs:#1a2327;--ln:#25323a;--tx:#d6e1e5;--mu:#86989f;--te:#2ec4b6;--tt:#12312f;--am:#f0a73a;--rd:#e5534b;--sm:#8fb3c9}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+#stage{position:relative;height:100vh;height:100dvh;min-height:560px;overflow:hidden;background:radial-gradient(1px 1px at 12% 18%,#fff8 50%,transparent),radial-gradient(1px 1px at 78% 12%,#fff6 50%,transparent),radial-gradient(1.5px 1.5px at 40% 82%,#fff7 50%,transparent),radial-gradient(1px 1px at 90% 70%,#fff6 50%,transparent),radial-gradient(1px 1px at 8% 60%,#fff6 50%,transparent),radial-gradient(1px 1px at 60% 40%,#fff4 50%,transparent),#060a12}
+#map{position:absolute;inset:0}
+.fl{position:absolute;z-index:5;background:var(--pn);border:1px solid var(--ln);border-radius:8px}
+#bar{left:12px;top:12px;width:min(420px,calc(100% - 76px));display:flex;align-items:center;padding:0 6px 0 14px;border-radius:24px}
+#bar input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:15px;padding:11px 8px;background:transparent;color:var(--tx)}
+#sr{left:12px;top:58px;width:min(420px,calc(100% - 76px));display:none;max-height:38%;overflow:auto;padding:4px 0}
+#sr div{padding:8px 14px;cursor:pointer}#sr div:hover,#sr div:focus{background:var(--rs);outline:0}#sr small{color:var(--mu);display:block}
+#chips{left:12px;top:62px;right:76px;display:flex;gap:6px;overflow-x:auto;background:none;border:0;padding:2px}#chips>*{flex:none}
+button,select,input[type=search]{font:inherit;color:var(--tx);background:var(--pn);border:1px solid var(--ln);border-radius:16px;padding:5px 12px}
+button{cursor:pointer}button:hover{border-color:var(--te)}button.on{background:var(--tt);border-color:var(--te);color:#fff}button.p{background:var(--te);border-color:var(--te);color:var(--bg);font-weight:600}
+:focus-visible{outline:2px solid var(--te);outline-offset:1px}
+#ctl{right:12px;top:12px;display:flex;flex-direction:column;gap:8px;background:none;border:0}
+#ctl button{width:44px;height:44px;border-radius:50%;padding:0;font-size:15px;line-height:1}
+#card{left:12px;top:112px;width:350px;max-height:calc(100% - 140px);overflow:auto;padding:14px 16px}
+@media(max-width:760px){#card{left:8px;right:8px;top:auto;bottom:26px;width:auto;max-height:44%}}
+h1{font-size:17px;margin:0 0 2px;font-weight:600}h2{font-size:12px;color:var(--mu);margin:12px 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:8px 0}dt{color:var(--mu)}dd{margin:0;word-break:break-word}
+.bd{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:600;color:var(--bg)}
+.nt{background:#2a1a19;border:1px solid var(--rd);color:#f3b8b4;border-radius:6px;padding:8px 10px;margin:8px 0}
+.note{font-size:12px;color:var(--mu);border-top:1px solid var(--ln);padding-top:8px;margin-top:10px}
+.lg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mu)}
+.pin{width:26px;height:36px;cursor:pointer}.pin svg{display:block;transform-origin:50% 100%;transition:transform .2s}
+.tw{margin:12px;padding:14px;background:var(--pn);border:1px solid var(--ln);border-radius:8px}
+.tb{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--ln);white-space:nowrap}th{color:var(--mu);font-weight:600}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--rs)}tbody tr.sel{background:var(--tt)}
+#toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--pn);border:1px solid var(--te);padding:9px 15px;border-radius:6px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;z-index:9}#toast.s{opacity:1}
+.maplibregl-ctrl-attrib{background:#0d1113cc!important}.maplibregl-ctrl-attrib a{color:var(--mu)!important}
+</style></head><body>
+<div id="stage">
+<div id="map" aria-label="3D Earth"></div>
+<div class="fl" id="bar"><input id="q" type="search" placeholder="Search any place, city or area on Earth" aria-label="Search places" autocomplete="off"><button id="go" class="p">Search</button></div>
+<div class="fl" id="sr" role="listbox"></div>
+<div class="fl" id="chips" role="group" aria-label="Radius and person"></div>
+<div class="fl" id="ctl"><button id="zi" aria-label="Zoom in">+</button><button id="zo" aria-label="Zoom out">−</button><button id="gl" aria-label="Globe or flat map" title="Globe / flat">🌐</button><button id="d3" aria-label="Tilt" title="3D tilt">3D</button><button id="sp" aria-label="Spin" title="Spin globe">⟳</button><button id="rs" aria-label="Whole Earth" title="Whole Earth">⌂</button></div>
+<div class="fl" id="card" aria-live="polite"></div>
+</div>
+<section class="tw"><div class="tb"><b style="font-size:16px">Case records</b><input id="tq" type="search" placeholder="Filter records" aria-label="Filter records"><span id="cnt" style="color:var(--mu)"></span></div>
+<div class="sc"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div></section>
+<div id="toast" role="status"></div>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<script>
+const STYLE='https://tiles.openfreemap.org/styles/liberty';
+const OSM={version:8,sources:{o:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'o',type:'raster',source:'o'}]};
+const $=s=>document.querySelector(s);
+const SRC={VERIFIED:['VERIFIED LOCATION','#2ec4b6'],ESTIMATED:['ESTIMATED AREA','#f0a73a'],SAMPLE:['SAMPLE LOCATION','#8fb3c9'],UNAVAILABLE:['LOCATION UNAVAILABLE','#e5534b']};
+/* DEMO DATA ONLY: sample coordinates at well-known city centres. Replace with records from your backend (GET /events). */
+const EV=[
+['EVT-0001','CASE-DEMO-01','SAMPLE-A','2026-10-01 09:12','Outgoing','SAMPLE',28.6129,77.2295,'Open'],
+['EVT-0002','CASE-DEMO-01','SAMPLE-A','2026-10-01 14:40','Incoming','ESTIMATED',19.0760,72.8777,'Under review'],
+['EVT-0003','CASE-DEMO-01','SAMPLE-C','2026-10-02 11:05','Outgoing','SAMPLE',28.6229,77.2395,'Open'],
+['EVT-0004','CASE-DEMO-02','SAMPLE-A','2026-10-03 08:15','Outgoing','SAMPLE',25.2048,55.2708,'Under review'],
+['EVT-0005','CASE-DEMO-02','SAMPLE-E','2026-10-03 16:47','Incoming','UNAVAILABLE',null,null,'Open'],
+['EVT-0006','CASE-DEMO-02','SAMPLE-E','2026-10-04 10:30','Incoming','SAMPLE',51.5074,-0.1278,'Closed'],
+['EVT-0007','CASE-DEMO-03','SAMPLE-C','2026-10-04 19:30','Outgoing','ESTIMATED',12.9716,77.5946,'Open']
+].map(a=>({id:a[0],cs:a[1],cl:a[2],ts:a[3],dir:a[4],src:a[5],lat:a[6],lng:a[7],st:a[8]}));
+const PRE=[100,250,500,1000,5000,25000,100000];
+let map,focus=null,area=null,rad=1000,person='',tq='',tilt=true,spin=false,globe=true,fell=false,ready=false,drag=false,res=[];
+const mk={},has=e=>e.lat!==null,reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hav=(a,b,c,d)=>{const R=6371000,r=Math.PI/180,p=(c-a)*r,l=(d-b)*r,x=Math.sin(p/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(l/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
+const fmt=m=>m>=1000?(m/1000).toFixed(m%1000?1:0)+' km':Math.round(m)+' m';
+const bd=k=>`<span class="bd" style="background:${SRC[k][1]}">${SRC[k][0]}</span>`;
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('s');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('s'),3800)};
+const M=111320,circle=(lat,lng,r)=>{const c=[];for(let i=0;i<=96;i++){const a=i/96*2*Math.PI;c.push([lng+r*Math.sin(a)/(M*Math.max(.01,Math.cos(lat*Math.PI/180))),lat+r*Math.cos(a)/M])}return{type:'Feature',geometry:{type:'Polygon',coordinates:[c]}}};
+const E0={type:'FeatureCollection',features:[]};
+const inRing=(x,y,r)=>{let c=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const[xi,yi]=r[i],[xj,yj]=r[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
+const inGeo=(x,y,g)=>{if(!g)return false;const p=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];return p.some(q=>inRing(x,y,q[0])&&!q.slice(1).some(h=>inRing(x,y,h)))};
+const pin=c=>`<svg viewBox="0 0 30 40" width="26" height="36"><path d="M15 39C15 39 2 25 2 14a13 13 0 0 1 26 0c0 11-13 25-13 25z" fill="${c}" stroke="#0d1113" stroke-width="2"/><circle cx="15" cy="14" r="5" fill="#0d1113"/></svg>`;
+const visible=()=>EV.filter(e=>!person||e.cl===person);
+
+/* ---------- map ---------- */
+function setup(){
+  try{map.setProjection({type:globe?'globe':'mercator'})}catch(e){}
+  try{map.setSky({'atmosphere-blend':['interpolate',['linear'],['zoom'],0,1,5,1,7,0]})}catch(e){}
+  if(map.getSource('area'))return;
+  ['area','rad','trk'].forEach(n=>map.addSource(n,{type:'geojson',data:E0}));
+  map.addLayer({id:'area-f',type:'fill',source:'area',paint:{'fill-color':'#2ec4b6','fill-opacity':.16}});
+  map.addLayer({id:'area-l',type:'line',source:'area',paint:{'line-color':'#2ec4b6','line-width':2.5}});
+  map.addLayer({id:'rad-f',type:'fill',source:'rad',paint:{'fill-color':'#f0a73a','fill-opacity':.12}});
+  map.addLayer({id:'rad-l',type:'line',source:'rad',paint:{'line-color':'#f0a73a','line-width':2}});
+  map.addLayer({id:'trk-l',type:'line',source:'trk',paint:{'line-color':'#8fb3c9','line-width':2.5,'line-dasharray':[2,2]}});
+  draw();
+}
+function init(){
+  if(typeof maplibregl==='undefined'){toast('Map library could not load. Check your internet connection, then reload.');return}
+  map=new maplibregl.Map({container:'map',style:STYLE,center:[40,22],zoom:1.5,pitch:0,maxPitch:80,attributionControl:{compact:true}});
+  map.on('style.load',setup);
+  map.on('sourcedata',e=>{if(e.isSourceLoaded&&!['area','rad','trk'].includes(e.sourceId))ready=true});
+  map.on('error',e=>{if(!fell&&!ready&&!map.isStyleLoaded()){fell=true;toast('3D style unavailable, using plain OpenStreetMap tiles.');map.setStyle(OSM)}});
+  map.on('dragstart',()=>drag=true);map.on('dragend',()=>drag=false);
+  EV.filter(has).forEach(e=>{const el=document.createElement('div');el.className='pin';el.title=e.id+' · '+e.cl+' · '+SRC[e.src][0];el.innerHTML=pin(SRC[e.src][1]);
+    el.onclick=()=>pickRec(e);mk[e.id]=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat([e.lng,e.lat]).addTo(map)});
+  setTimeout(()=>{if(!ready)toast('The map tiles have not loaded yet. Open this file in Chrome or Edge with internet access.')},15000);
+  requestAnimationFrame(loop);
+}
+function loop(){requestAnimationFrame(loop);if(map&&spin&&!drag&&!reduce&&map.getZoom()<5){const c=map.getCenter();map.jumpTo({center:[c.lng+.12,c.lat]})}}
+function draw(){
+  if(!map||!map.getSource('rad'))return;
+  map.getSource('area').setData(area&&area.geo&&/Polygon/.test(area.geo.type)?{type:'Feature',geometry:area.geo}:E0);
+  map.getSource('rad').setData(focus?circle(focus.lat,focus.lng,rad):E0);
+  const t=person?visible().filter(has).sort((a,b)=>a.ts.localeCompare(b.ts)):[];
+  map.getSource('trk').setData(t.length>1?{type:'Feature',geometry:{type:'LineString',coordinates:t.map(e=>[e.lng,e.lat])}}:E0);
+}
+function zoomFor(r,lat){return Math.min(17,Math.max(1.5,Math.log2(78271.52*Math.cos(lat*Math.PI/180)*$('#stage').clientWidth/(r*5))))}
+function fly(lat,lng,r){if(map)map.flyTo({center:[lng,lat],zoom:zoomFor(r,lat),pitch:tilt?55:0,duration:reduce?0:2600,essential:true})}
+
+/* ---------- selection ---------- */
+function pickRec(e){area=null;focus=has(e)?{type:'rec',e,lat:e.lat,lng:e.lng}:{type:'rec',e,lat:null};$('#sr').style.display='none';paint();if(has(e))fly(e.lat,e.lng,rad);table()}
+function pickPlace(p){
+  const g=p.geojson&&/Polygon/.test(p.geojson.type)?p.geojson:null,[s,n,w,e]=p.boundingbox.map(Number);
+  area={name:p.display_name,type:(p.addresstype||p.type||'place'),geo:g};focus={type:'place',lat:+p.lat,lng:+p.lon};$('#sr').style.display='none';paint();
+  if(map){if(g||(n-s)>0.002)map.fitBounds([[w,s],[e,n]],{padding:70,pitch:tilt?50:0,duration:reduce?0:2600,maxZoom:16});else fly(+p.lat,+p.lon,rad)}
+}
+function near(){
+  if(!focus||focus.lat===null)return[];
+  const poly=focus.type==='place'&&area&&area.geo;
+  return EV.filter(e=>has(e)&&!(focus.e&&focus.e===e)&&(!person||e.cl===person)).map(e=>({e,d:hav(focus.lat,focus.lng,e.lat,e.lng)})).filter(o=>poly?inGeo(o.e.lng,o.e.lat,area.geo):o.d<=rad).sort((a,b)=>a.d-b.d);
+}
+function paint(){
+  const ppl=[...new Set(EV.map(e=>e.cl))];
+  $('#chips').innerHTML=PRE.map(p=>`<button data-r="${p}" class="${p===rad?'on':''}" aria-pressed="${p===rad}">${fmt(p)}</button>`).join('')+`<select id="pp" aria-label="Show person"><option value="">All callers</option>${ppl.map(c=>`<option ${c===person?'selected':''}>${c}</option>`).join('')}</select>`;
+  $('#gl').classList.toggle('on',globe);$('#d3').classList.toggle('on',tilt);$('#sp').classList.toggle('on',spin);
+  const n=near(),vis=visible();
+  for(const e of EV){const m=mk[e.id];if(!m)continue;const on=vis.includes(e);m.getElement().style.display=on?'':'none';m.getElement().firstChild.style.transform=focus&&focus.e===e?'scale(1.4)':''}
+  let h='';
+  if(focus&&focus.type==='place'){
+    const poly=area.geo;
+    h=`<h1>Search area</h1><div class="mu" style="color:var(--mu)">${esc(area.name)}</div><dl><dt>Type</dt><dd>${esc(area.type)}</dd><dt>Centre</dt><dd>${focus.lat.toFixed(5)}, ${focus.lng.toFixed(5)}</dd><dt>Boundary</dt><dd>${poly?'Drawn on the map':'Point only. Using the '+fmt(rad)+' radius'}</dd></dl>
+<h2>Case records ${poly?'inside this area':'within '+fmt(rad)}</h2>${n.length?`<dl>${n.map(o=>`<dt>${o.e.id}</dt><dd>${o.e.cl} · ${fmt(o.d)} from centre · <a href="#" data-j="${o.e.id}" style="color:var(--te)">open</a></dd>`).join('')}</dl>`:'<div style="color:var(--mu)">No case records with coordinates here.</div>'}`;
+  }else if(focus&&focus.e){
+    const e=focus.e,loc=has(e);
+    h=`<h1>${e.id}</h1><div>${e.cs} · ${bd(e.src)}</div>${loc?`<p style="margin:8px 0 0"><b>Radius ${fmt(rad)}</b> · ${n.length} other record${n.length==1?'':'s'} inside</p>`:'<div class="nt"><b>Location unavailable.</b> No authorised location record exists for this event, so nothing is placed on the map.</div>'}
+<dl><dt>Person</dt><dd>${e.cl}</dd><dt>Time</dt><dd>${e.ts}</dd><dt>Direction</dt><dd>${e.dir}</dd><dt>Status</dt><dd>${e.st}</dd><dt>Coordinates</dt><dd>${loc?e.lat.toFixed(5)+', '+e.lng.toFixed(5):'Not available'}</dd></dl>
+<button class="p" id="oa" style="width:100%">Open voice analysis</button>
+<h2>Other records within ${fmt(rad)}</h2>${loc?(n.length?`<dl>${n.map(o=>`<dt>${o.e.id}</dt><dd>${fmt(o.d)} · <a href="#" data-j="${o.e.id}" style="color:var(--te)">select</a></dd>`).join('')}</dl>`:'<div style="color:var(--mu)">None.</div>'):'<div style="color:var(--mu)">Needs coordinates from an authorised source.</div>'}`;
+  }else h=`<h1>Earth view</h1><p style="color:var(--mu);margin:4px 0 8px">Search any place, city or area to fly there and see its boundary. Pick a case record to see its radius. Choose a caller to see all of that caller's recorded locations in time order.</p>`;
+  if(person){const t=vis.filter(has);h+=`<h2>${person}: recorded locations</h2><div>${t.length} of ${vis.length} records have a location${t.length>1?'. Dashed line shows the order in time.':'.'}</div>`}
+  h+=`<h2>Legend</h2><div class="lg">${Object.keys(SRC).map(k=>`<span><span style="color:${SRC[k][1]}">●</span> ${SRC[k][0]}${k==='VERIFIED'?' (none in demo)':''}</span>`).join('')}<span><span style="color:#2ec4b6">▭</span> Search area</span><span><span style="color:#f0a73a">○</span> Radius</span></div>
+<div class="note">This tool only shows places you search and location records attached to cases from authorised sources. It cannot find a person from a name, phone number, voice or IP address. Radius and area filtering does not show that anyone was at a point or committed a crime. Records here are DEMO DATA.</div>`;
+  $('#card').innerHTML=h;draw();
+}
+/* ---------- table ---------- */
+function table(){
+  const cols=[['id','Event ID'],['cs','Case ID'],['cl','Person'],['ts','Time'],['dir','Direction'],['src','Location source'],['st','Status']];
+  const r=visible().filter(e=>!tq||Object.values(e).join(' ').toLowerCase().includes(tq));
+  $('#th').innerHTML='<tr>'+cols.map(c=>`<th>${c[1]}</th>`).join('')+'</tr>';
+  $('#tb').innerHTML=r.map(e=>`<tr data-id="${e.id}" tabindex="0" class="${focus&&focus.e===e?'sel':''}">${cols.map(c=>`<td>${c[0]==='src'?bd(e.src):e[c[0]]}</td>`).join('')}</tr>`).join('')||'<tr><td colspan="7" style="color:var(--mu)">No records match.</td></tr>';
+  $('#cnt').textContent=r.length+' of '+EV.length+' records';
+}
+/* ---------- search ---------- */
+async function search(){
+  const q=$('#q').value.trim();if(!q)return;
+  $('#sr').style.display='block';$('#sr').innerHTML='<div style="color:var(--mu)">Searching…</div>';
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&polygon_geojson=1&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}});
+    if(!r.ok)throw new Error('HTTP '+r.status);res=await r.json();
+    $('#sr').innerHTML=res.length?res.map((p,i)=>`<div tabindex="0" data-i="${i}">${esc(p.display_name.split(',').slice(0,2).join(','))}<small>${esc(p.display_name)}</small></div>`).join(''):'<div style="color:var(--mu)">No place found. Try a different spelling or add the country.</div>';
+    if(res.length===1)pickPlace(res[0])}
+  catch(e){$('#sr').innerHTML='<div style="color:var(--rd)">Search failed ('+esc(e.message)+'). Check your connection and try again.</div>'}
+}
+$('#go').onclick=search;$('#q').onkeydown=e=>{if(e.key==='Enter')search();if(e.key==='Escape')$('#sr').style.display='none'};
+const srPick=e=>{const t=e.target.closest('[data-i]');if(t)pickPlace(res[+t.dataset.i])};$('#sr').onclick=srPick;$('#sr').onkeydown=e=>{if(e.key==='Enter')srPick(e)};
+$('#chips').onclick=e=>{const b=e.target.closest('[data-r]');if(!b)return;rad=+b.dataset.r;paint();if(focus&&focus.lat!==null&&!(area&&area.geo))fly(focus.lat,focus.lng,rad)};
+$('#chips').onchange=e=>{if(e.target.id==='pp'){person=e.target.value;paint();table();const t=visible().filter(has);if(map&&person&&t.length){const b=new maplibregl.LngLatBounds();t.forEach(x=>b.extend([x.lng,x.lat]));map.fitBounds(b,{padding:90,pitch:tilt?35:0,duration:reduce?0:2600,maxZoom:8})}}};
+$('#zi').onclick=()=>map&&map.zoomIn();$('#zo').onclick=()=>map&&map.zoomOut();
+$('#gl').onclick=()=>{globe=!globe;try{map.setProjection({type:globe?'globe':'mercator'})}catch(e){toast('This map library version does not support the globe view.')}paint()};
+$('#d3').onclick=()=>{tilt=!tilt;map&&map.easeTo({pitch:tilt?55:0,duration:reduce?0:800});paint()};
+$('#sp').onclick=()=>{spin=!spin;paint()};
+$('#rs').onclick=()=>{if(map)map.flyTo({center:[40,22],zoom:1.5,pitch:0,bearing:0,duration:reduce?0:2200})};
+$('#tq').oninput=e=>{tq=e.target.value.toLowerCase();table()};
+const rp=e=>{const t=e.target.closest('tr[data-id]');if(t){pickRec(EV.find(x=>x.id===t.dataset.id));scrollTo({top:0,behavior:reduce?'auto':'smooth'})}};
+$('#tb').onclick=rp;$('#tb').onkeydown=e=>{if(e.key==='Enter')rp(e)};
+$('#card').onclick=e=>{const j=e.target.closest('[data-j]');if(j){e.preventDefault();pickRec(EV.find(x=>x.id===j.dataset.j))}
+  if(e.target.id==='oa'){location.hash='#/audio-analysis/'+focus.e.id;toast('In the integrated app this opens /audio-analysis/'+focus.e.id+' with the event, case and location provenance.')}};
+paint();table();init();
+</script></body></html>

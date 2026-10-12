@@ -1,6 +1,29 @@
 import numpy as np
-import scipy.signal as signal
+try:
+    import scipy.signal as signal
+except Exception:
+    signal = None
+
 from typing import Dict, Any
+
+def _numpy_stft(x: np.ndarray, fs: int, nperseg: int):
+    step = max(1, nperseg // 2)
+    if len(x) < nperseg:
+        x = np.pad(x, (0, nperseg - len(x)))
+    n_frames = max(1, (len(x) - nperseg) // step + 1)
+    window = np.hanning(nperseg)
+    cols = []
+    for i in range(n_frames):
+        start = i * step
+        chunk = x[start:start + nperseg]
+        if len(chunk) < nperseg:
+            chunk = np.pad(chunk, (0, nperseg - len(chunk)))
+        cols.append(np.fft.rfft(chunk * window))
+    Zxx = np.column_stack(cols) if cols else np.zeros((nperseg // 2 + 1, 1), dtype=complex)
+    frequencies = np.fft.rfftfreq(nperseg, 1.0 / fs)
+    times = np.arange(n_frames) * (step / fs)
+    return frequencies, times, Zxx
+
 
 def analyze_voice_acoustics(audio_array: np.ndarray, sample_rate: int, filename: str = "") -> Dict[str, Any]:
     """
@@ -41,7 +64,13 @@ def analyze_voice_acoustics(audio_array: np.ndarray, sample_rate: int, filename:
 
     # 1. Compute STFT Spectrogram for spectro-temporal feature extraction
     n_per_seg = min(1024, max(64, len(audio_array) // 4))
-    frequencies, times, Zxx = signal.stft(audio_array, fs=sample_rate, nperseg=n_per_seg)
+    if signal is not None:
+        try:
+            frequencies, times, Zxx = signal.stft(audio_array, fs=sample_rate, nperseg=n_per_seg)
+        except Exception:
+            frequencies, times, Zxx = _numpy_stft(audio_array, fs=sample_rate, nperseg=n_per_seg)
+    else:
+        frequencies, times, Zxx = _numpy_stft(audio_array, fs=sample_rate, nperseg=n_per_seg)
     magnitude = np.abs(Zxx) + 1e-10
     power = magnitude ** 2
 
@@ -68,8 +97,18 @@ def analyze_voice_acoustics(audio_array: np.ndarray, sample_rate: int, filename:
         hf_ratio = 0.05
 
     # 5. Pitch Jitter & F0 Regularity (isolated to fundamental vocal range 60-500Hz)
-    sos = signal.butter(4, min(500, sample_rate // 4), 'lowpass', fs=sample_rate, output='sos')
-    f0_signal = signal.sosfilt(sos, audio_array)
+    f0_signal = audio_array
+    if signal is not None:
+        try:
+            sos = signal.butter(4, min(500, sample_rate // 4), 'lowpass', fs=sample_rate, output='sos')
+            f0_signal = signal.sosfilt(sos, audio_array)
+        except Exception:
+            f0_signal = audio_array
+    else:
+        # Simple moving average lowpass filter approximation
+        win_size = max(1, sample_rate // 500)
+        f0_signal = np.convolve(audio_array, np.ones(win_size) / win_size, mode='same')
+
     
     zero_crossings = np.where(np.diff(np.signbit(f0_signal)))[0]
     if len(zero_crossings) > 20:

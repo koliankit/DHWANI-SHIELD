@@ -129,7 +129,11 @@ export const WaveformPlayer: React.FC<Props> = ({
       }
 
       ctx.beginPath();
-      ctx.roundRect(x, y, barWidth, barHeight, 2);
+      if (typeof (ctx as any).roundRect === 'function') {
+        (ctx as any).roundRect(x, y, barWidth, barHeight, 2);
+      } else {
+        ctx.rect(x, y, barWidth, barHeight);
+      }
       ctx.fill();
     }
   }, [peaks, currentTime, totalDuration]);
@@ -137,13 +141,16 @@ export const WaveformPlayer: React.FC<Props> = ({
   // Click on waveform to seek
   const handleWaveformClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !audioRef.current) return;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const pct = Math.max(0, Math.min(1, clickX / rect.width));
     const seekTime = pct * totalDuration;
-    audioRef.current.currentTime = seekTime;
+    if (audioRef.current) {
+      audioRef.current.currentTime = seekTime;
+    }
     setCurrentTime(seekTime);
+    onTimeUpdate?.(seekTime);
   };
 
   const formatTime = (seconds: number) => {

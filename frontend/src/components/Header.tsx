@@ -70,6 +70,14 @@ export const Header: React.FC<Props> = ({
               <span className={isDarkMode ? 'text-[#25323a]' : 'text-slate-400'}>/</span>
               <span className={`font-semibold ${isDarkMode ? 'text-[#2ec4b6]' : 'text-teal-700'}`}>Location Intelligence</span>
             </>
+          ) : activeTab === 'location_map' ? (
+            <>
+              <span className={isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}>Investigation</span>
+              <span className={isDarkMode ? 'text-[#25323a]' : 'text-slate-400'}>/</span>
+              <span className={`font-semibold ${isDarkMode ? 'text-[#d6e1e5]' : 'text-slate-700'}`}>3D Earth</span>
+              <span className={isDarkMode ? 'text-[#25323a]' : 'text-slate-400'}>/</span>
+              <span className={`font-semibold ${isDarkMode ? 'text-[#2ec4b6]' : 'text-teal-700'}`}>Location Map</span>
+            </>
           ) : activeTab === 'new_analysis' ? (
             <>
               <span className={isDarkMode ? 'text-[#86989f]' : 'text-slate-500'}>Intake</span>

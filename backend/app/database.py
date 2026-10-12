@@ -154,6 +154,9 @@ def get_analysis_by_id(analysis_id: str) -> Optional[Dict[str, Any]]:
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM analyses WHERE id = ? OR event_id = ?", (analysis_id, analysis_id))
     row = cursor.fetchone()
+    if not row:
+        cursor.execute("SELECT * FROM analyses WHERE id LIKE ? OR event_id LIKE ? ORDER BY created_at DESC", (f"{analysis_id}%", f"{analysis_id}%"))
+        row = cursor.fetchone()
     conn.close()
     if not row:
         return None

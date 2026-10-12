@@ -23,7 +23,7 @@ from app.database import (
 )
 from app.schemas import (
     AnalysisResponse, SystemStatusResponse, SystemModelDetail, HistoryItem,
-    LocationRecord, IngestCallRequest, ConsentGPSRequest
+    LocationRecord, IngestCallRequest, ConsentGPSRequest, EventRecord
 )
 from app.services.audio_processor import parse_audio_data, generate_waveform_peaks
 from app.services.acoustic_analyzer import analyze_voice_acoustics
@@ -31,6 +31,7 @@ from app.services.stt_engine import transcribe_audio
 from app.services.fraud_detector import detect_financial_scam_indicators
 from app.services.risk_engine import evaluate_composite_risk
 from app.services.geocoding import reverse_geocode_async, reverse_geocode_sync
+from app.services.events_service import get_events, get_event_by_id, search_places_proxy
 from app.utils.pdf_generator import generate_pdf_report
 from app.geospatial import (
     query_calls, get_call_by_ref, get_call_by_evidence_id, get_call_by_event_id,
@@ -45,9 +46,21 @@ app = FastAPI(
     version="2.5.0"
 )
 
+# Enable CORS only for the frontend origin
+FRONTEND_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+]
+if os.getenv("FRONTEND_ORIGIN"):
+    FRONTEND_ORIGINS.extend([o.strip() for o in os.getenv("FRONTEND_ORIGIN").split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -438,6 +451,35 @@ async def ingest_call_telephony(request: IngestCallRequest):
     save_analysis(test_res)
     return test_res
 
+# -------------------------------------------------------------
+# Location Map & Nominatim Geocoding Proxy Endpoints
+# -------------------------------------------------------------
+@app.get("/api/events", response_model=List[EventRecord])
+def list_events():
+    """
+    Returns case records with location provenance (VERIFIED|ESTIMATED|SAMPLE|UNAVAILABLE),
+    coordinates (if authorized), and detection verdicts.
+    """
+    return get_events()
+
+@app.get("/api/geocode")
+async def geocode_proxy(q: str = Query(..., min_length=1, description="Place search query")):
+    """
+    Proxy to Nominatim with 1 request per second rate limiting, in-memory caching,
+    proper User-Agent compliance, and offline/error protection.
+    """
+    return await search_places_proxy(q)
+
+@app.get("/api/events/{event_id}", response_model=EventRecord)
+def get_single_event(event_id: str):
+    """
+    Returns a specific event record by ID.
+    """
+    event = get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail=f"Event '{event_id}' not found")
+    return event
+
 @app.get("/api/events/{event_id}/consent-link")
 @app.post("/api/events/{event_id}/consent-link")
 def generate_consent_link(event_id: str):
@@ -779,8 +821,8 @@ async def websocket_live_analysis(websocket: WebSocket):
             total_samples = len(audio_buffer)
             total_duration = total_samples / float(sample_rate)
 
-            # Evaluate rolling 2 to 4 second window (e.g., 3.0s window every 1.5s)
-            if total_duration >= 2.0 and (now - last_analysis_time >= 1.5):
+            # Evaluate rolling window (from 1.0s onward every 0.5s)
+            if total_duration >= 1.0 and (now - last_analysis_time >= 0.5):
                 last_analysis_time = now
                 window_size = min(total_samples, int(sample_rate * 3.5))  # 3.5-second chunk
                 window_audio = np.array(audio_buffer[-window_size:], dtype=np.float32)

@@ -2,7 +2,10 @@ import io
 import wave
 import numpy as np
 from typing import Tuple, Dict, Any, List
-import scipy.io.wavfile as wavfile
+try:
+    import scipy.io.wavfile as wavfile
+except Exception:
+    wavfile = None
 
 def parse_audio_data(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     """
@@ -15,30 +18,32 @@ def parse_audio_data(file_bytes: bytes, filename: str) -> Dict[str, Any]:
     audio_data = None
     
     # Try reading as standard WAV
-    try:
-        sr_read, data = wavfile.read(io.BytesIO(file_bytes))
-        sr = int(sr_read)
-        if data.ndim > 1:
-            channels = data.shape[1]
-            data = data.mean(axis=1) # convert to mono
-        else:
-            channels = 1
-            
-        # Normalize to float32 [-1, 1]
-        if data.dtype == np.int16:
-            audio_data = (data / 32768.0).astype(np.float32)
-        elif data.dtype == np.int32:
-            audio_data = (data / 2147483648.0).astype(np.float32)
-        elif data.dtype == np.uint8:
-            audio_data = ((data - 128) / 128.0).astype(np.float32)
-        elif np.issubdtype(data.dtype, np.floating):
-            audio_data = data.astype(np.float32)
-        else:
-            audio_data = (data / float(np.max(np.abs(data)) or 1)).astype(np.float32)
-            
-        duration = float(len(audio_data)) / float(sr)
-    except Exception as e:
-        # If not direct WAV or header error, attempt standard wave module or raw fallback
+    if wavfile is not None:
+        try:
+            sr_read, data = wavfile.read(io.BytesIO(file_bytes))
+            sr = int(sr_read)
+            if data.ndim > 1:
+                channels = data.shape[1]
+                data = data.mean(axis=1) # convert to mono
+            else:
+                channels = 1
+                
+            # Normalize to float32 [-1, 1]
+            if data.dtype == np.int16:
+                audio_data = (data / 32768.0).astype(np.float32)
+            elif data.dtype == np.int32:
+                audio_data = (data / 2147483648.0).astype(np.float32)
+            elif data.dtype == np.float32 or data.dtype == np.float64:
+                audio_data = data.astype(np.float32)
+            else:
+                audio_data = (data / 32768.0).astype(np.float32)
+                
+            duration = float(len(audio_data) / sr)
+        except Exception:
+            pass
+
+    # If not direct WAV or header error, attempt standard wave module or raw fallback
+    if audio_data is None:
         try:
             with wave.open(io.BytesIO(file_bytes), 'rb') as wf:
                 channels = wf.getnchannels()

@@ -185,4 +185,36 @@ export interface CallRecord {
   admin_id?: number;
 }
 
-export type ActiveNavTab = 'voice_analysis' | 'geospatial' | 'dashboard' | 'new_analysis' | 'history' | 'models' | 'settings';
+export type ActiveNavTab = 'voice_analysis' | 'geospatial' | 'location_map' | 'dashboard' | 'new_analysis' | 'history' | 'models' | 'settings';
+
+export type LocationSource = 'VERIFIED' | 'ESTIMATED' | 'SAMPLE' | 'UNAVAILABLE';
+
+export interface EventRecord {
+  id: string;
+  case_id: string;
+  caller_id: string;
+  timestamp: string;
+  direction: 'Incoming' | 'Outgoing' | string;
+  location_source: LocationSource;
+  lat: number | null;
+  lng: number | null;
+  status: 'Open' | 'Under review' | 'Closed' | string;
+  risk_score?: number | null;
+  verdict?: 'LOW RISK' | 'REVIEW REQUIRED' | 'HIGH RISK' | string | null;
+  is_demo?: boolean;
+}
+
+export interface GeocodePlace {
+  place_id?: number | string;
+  display_name: string;
+  lat: string;
+  lon: string;
+  type?: string;
+  addresstype?: string;
+  boundingbox: string[];
+  geojson?: {
+    type: string;
+    coordinates: any;
+  };
+}
+

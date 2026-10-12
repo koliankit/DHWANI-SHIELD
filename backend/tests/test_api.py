@@ -1,4 +1,7 @@
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 import os
 import io
 import sys
@@ -30,7 +33,7 @@ def test_quick_test_benign():
     assert res.status_code == 200
     data = res.json()
     assert "analysis_id" in data
-    assert data["authenticity_label"] in ["Likely Real", "Inconclusive"]
+    assert data["authenticity_label"] in ["Likely Real", "Inconclusive", "LIKELY GENUINE"]
     assert data["scam_indicators_count"] == 0
     assert data["overall_risk"] in ["LOW RISK", "VERIFY"]
 
@@ -60,3 +63,12 @@ def test_history():
     assert res.status_code == 200
     items = res.json()
     assert len(items) >= 2
+
+if __name__ == "__main__":
+    test_health()
+    test_models()
+    test_quick_test_benign()
+    test_quick_test_ai_clone()
+    test_pdf_report_generation()
+    test_history()
+    print("All test_api tests passed!")
